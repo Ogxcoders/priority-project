@@ -5,7 +5,7 @@
 # DEPLOY ON COOLIFY:
 #   1. Add this repo as Docker Compose resource
 #   2. Set domain to: https://project.trendss.net
-#   3. Coolify handles SSL automatically
+#   3. Coolify handles SSL & proxy automatically
 #
 # ============================================================
 
@@ -21,7 +21,6 @@ services:
         NEXT_PUBLIC_APPWRITE_ENDPOINT: "https://login.trendss.net/v1"
         NEXT_PUBLIC_APPWRITE_PROJECT_ID: "69986d6b00089ab44a8d"
         NEXT_PUBLIC_APPWRITE_DATABASE_ID: "priority-commander"
-    container_name: pc-web
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -31,6 +30,7 @@ services:
       REDIS_URL: "redis://redis:6379"
       REDIS_PASSWORD: "${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}"
       ALLOWED_ORIGINS: "https://project.trendss.net"
+      SERVICE_FQDN_WEB: "${SERVICE_FQDN_WEB:-project.trendss.net}"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
@@ -41,19 +41,14 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - app-network
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.0"
+      - coolify
+      - default
 
   # ══════════════════════════════════════════════════════════
   # 🗄️ REDIS — Cache Layer
   # ══════════════════════════════════════════════════════════
   redis:
     image: redis:7-alpine
-    container_name: pc-cache
     restart: unless-stopped
     command: >
       redis-server
@@ -71,16 +66,12 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - app-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
+      - default
 
 volumes:
   redis-data:
     driver: local
 
 networks:
-  app-network:
-    driver: bridge
+  coolify:
+    external: true
