@@ -3,15 +3,22 @@
 # Multi-stage build for minimal image size
 # ============================================================
 
-# ── Stage 1: Install ALL dependencies (dev + prod needed for build) ──
+# ── Stage 1: Install dependencies ──
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci && npm cache clean --force
+
+# Copy package files
+COPY package.json ./
+COPY package-lock.json* ./
+
+# Install dependencies (use install instead of ci for compatibility)
+RUN npm install --legacy-peer-deps && npm cache clean --force
 
 # ── Stage 2: Build the application ──
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Copy deps from stage 1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -52,7 +59,6 @@ USER nextjs
 
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
