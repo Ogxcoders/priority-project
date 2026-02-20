@@ -1,0 +1,181 @@
+# ============================================================
+# 🚀 PRIORITY COMMANDER — One-File Deployment
+# ============================================================
+#
+# INSTRUCTIONS:
+#   1. Edit the variables below (lines marked with ✏️)
+#   2. Run: docker compose up -d --build
+#   3. Done! Auto-SSL, caching, security — all handled.
+#
+# ============================================================
+
+# ── ALL CONFIGURATION IN ONE PLACE ──
+x-config: &config
+  # ✏️ YOUR DOMAIN (use localhost for local dev)
+  APP_DOMAIN: &domain "priority.yourdomain.com"
+
+  # ✏️ YOUR EMAIL (for SSL certificate)
+  SSL_EMAIL: &ssl_email "your@email.com"
+
+  # ✏️ APPWRITE CONFIG
+  APPWRITE_ENDPOINT: &aw_endpoint "https://login.trendss.net/v1"
+  APPWRITE_PROJECT:  &aw_project  "69986d6b00089ab44a8d"
+  APPWRITE_DB:       &aw_db       "priority-commander"
+
+  # ✏️ SECURITY
+  REDIS_PASSWORD:    &redis_pass  "Change-This-Strong-P@ssw0rd-2026"
+  ALLOWED_ORIGINS:   &origins     "https://priority.yourdomain.com"
+
+  # ✏️ APP PORT (only used if no reverse proxy)
+  APP_PORT: &app_port "3000"
+
+
+services:
+  # ══════════════════════════════════════════════════════════
+  # 🌐 CADDY — Reverse Proxy + Auto SSL (Let's Encrypt)
+  # ══════════════════════════════════════════════════════════
+  caddy:
+    image: caddy:2-alpine
+    container_name: pc-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      APP_DOMAIN: *domain
+      SSL_EMAIL: *ssl_email
+    command: |
+      sh -c 'cat > /etc/caddy/Caddyfile << EOF
+      {
+        email $${SSL_EMAIL}
+      }
+
+      $${APP_DOMAIN} {
+        reverse_proxy web:3000
+
+        # Security headers
+        header {
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          X-XSS-Protection "1; mode=block"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Permissions-Policy "camera=(), microphone=(), geolocation=()"
+          Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+          -Server
+          -X-Powered-By
+        }
+
+        # Gzip compression
+        encode gzip zstd
+
+        # Rate limiting
+        rate_limit {
+          zone dynamic_zone {
+            key {remote_host}
+            events 100
+            window 1m
+          }
+        }
+      }
+      EOF
+      caddy run --config /etc/caddy/Caddyfile --adapter caddyfile'
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ══════════════════════════════════════════════════════════
+  # ⚡ WEB — Next.js Application
+  # ══════════════════════════════════════════════════════════
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APPWRITE_ENDPOINT: *aw_endpoint
+        NEXT_PUBLIC_APPWRITE_PROJECT_ID: *aw_project
+        NEXT_PUBLIC_APPWRITE_DATABASE_ID: *aw_db
+    container_name: pc-web
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      REDIS_URL: "redis://redis:6379"
+      REDIS_PASSWORD: *redis_pass
+      ALLOWED_ORIGINS: *origins
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # ══════════════════════════════════════════════════════════
+  # 🗄️ REDIS — Cache Layer
+  # ══════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: pc-cache
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --requirepass "${REDIS_PASSWORD:-Change-This-Strong-P@ssw0rd-2026}"
+      --appendonly yes
+      --tcp-keepalive 60
+      --timeout 300
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-Change-This-Strong-P@ssw0rd-2026}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+
+# ══════════════════════════════════════════════════════════
+# 📦 PERSISTENT VOLUMES
+# ══════════════════════════════════════════════════════════
+volumes:
+  caddy-data:       # SSL certificates
+    driver: local
+  caddy-config:     # Caddy configuration
+    driver: local
+  redis-data:       # Redis persistence
+    driver: local
+
+
+# ══════════════════════════════════════════════════════════
+# 🔗 NETWORK
+# ══════════════════════════════════════════════════════════
+networks:
+  app-network:
+    driver: bridge
