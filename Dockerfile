@@ -1,13 +1,13 @@
 # ============================================================
 # Priority Commander — Production Dockerfile
-# Multi-stage build for minimal image size (~150MB)
+# Multi-stage build for minimal image size
 # ============================================================
 
-# ── Stage 1: Install dependencies ──
+# ── Stage 1: Install ALL dependencies (dev + prod needed for build) ──
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci && npm cache clean --force
 
 # ── Stage 2: Build the application ──
 FROM node:20-alpine AS builder
@@ -15,7 +15,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build-time env vars (these get baked into the client bundle)
+# Build-time env vars (baked into the client bundle)
 ARG NEXT_PUBLIC_APPWRITE_ENDPOINT
 ARG NEXT_PUBLIC_APPWRITE_PROJECT_ID
 ARG NEXT_PUBLIC_APPWRITE_DATABASE_ID
@@ -23,15 +23,17 @@ ARG NEXT_PUBLIC_APPWRITE_DATABASE_ID
 ENV NEXT_PUBLIC_APPWRITE_ENDPOINT=$NEXT_PUBLIC_APPWRITE_ENDPOINT
 ENV NEXT_PUBLIC_APPWRITE_PROJECT_ID=$NEXT_PUBLIC_APPWRITE_PROJECT_ID
 ENV NEXT_PUBLIC_APPWRITE_DATABASE_ID=$NEXT_PUBLIC_APPWRITE_DATABASE_ID
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
 
-# ── Stage 3: Production runner ──
+# ── Stage 3: Production runner (minimal) ──
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Security: run as non-root user
 RUN addgroup --system --gid 1001 nodejs && \
