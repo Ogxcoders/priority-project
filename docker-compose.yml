@@ -1,13 +1,3 @@
-# ============================================================
-# 🚀 PRIORITY COMMANDER — Coolify Docker Compose
-# ============================================================
-# COOLIFY SETUP:
-#   1. Set Domains for web to: https://project.trendss.net:3000
-#      (the :3000 tells Coolify the internal container port)
-#   2. Coolify auto-handles SSL, Traefik labels, networking
-#   3. Do NOT add custom traefik labels — Coolify manages them
-# ============================================================
-
 services:
   web:
     build:
@@ -20,15 +10,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - HOSTNAME=0.0.0.0
       - REDIS_URL=redis://redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}
+      - REDIS_PASSWORD=Pr10r1ty-C0mmand3r-2026
       - ALLOWED_ORIGINS=https://project.trendss.net
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 5s
-      start_period: 15s
-      retries: 3
+    exclude_from_hc: true
     depends_on:
       redis:
         condition: service_healthy
@@ -39,15 +25,16 @@ services:
       redis-server
       --maxmemory 128mb
       --maxmemory-policy allkeys-lru
-      --requirepass ${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}
+      --requirepass Pr10r1ty-C0mmand3r-2026
       --appendonly yes
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "Pr10r1ty-C0mmand3r-2026", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+    exclude_from_hc: true
 
 volumes:
   redis-data:
