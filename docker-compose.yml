@@ -1,18 +1,10 @@
 # ============================================================
-# 🚀 PRIORITY COMMANDER — Coolify Docker Compose Deployment
+# 🚀 PRIORITY COMMANDER — Coolify Docker Compose
 # ============================================================
-#
-# DEPLOY ON COOLIFY:
-#   1. Add this repo as Docker Compose resource
-#   2. Set domain to: https://project.trendss.net
-#   3. Coolify handles SSL & proxy automatically
-#
+# Coolify handles: SSL, proxy, networking, domain routing
 # ============================================================
 
 services:
-  # ══════════════════════════════════════════════════════════
-  # ⚡ WEB — Next.js Application
-  # ══════════════════════════════════════════════════════════
   web:
     build:
       context: .
@@ -21,16 +13,12 @@ services:
         NEXT_PUBLIC_APPWRITE_ENDPOINT: "https://login.trendss.net/v1"
         NEXT_PUBLIC_APPWRITE_PROJECT_ID: "69986d6b00089ab44a8d"
         NEXT_PUBLIC_APPWRITE_DATABASE_ID: "priority-commander"
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
-      NODE_ENV: production
-      PORT: "3000"
-      REDIS_URL: "redis://redis:6379"
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}"
-      ALLOWED_ORIGINS: "https://project.trendss.net"
-      SERVICE_FQDN_WEB: "${SERVICE_FQDN_WEB:-project.trendss.net}"
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}
+      - ALLOWED_ORIGINS=https://project.trendss.net
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
@@ -40,24 +28,15 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    networks:
-      - coolify
-      - default
 
-  # ══════════════════════════════════════════════════════════
-  # 🗄️ REDIS — Cache Layer
-  # ══════════════════════════════════════════════════════════
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
     command: >
       redis-server
       --maxmemory 128mb
       --maxmemory-policy allkeys-lru
-      --requirepass "${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}"
+      --requirepass ${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}
       --appendonly yes
-      --tcp-keepalive 60
-      --timeout 300
     volumes:
       - redis-data:/data
     healthcheck:
@@ -65,13 +44,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    networks:
-      - default
 
 volumes:
   redis-data:
     driver: local
-
-networks:
-  coolify:
-    external: true
