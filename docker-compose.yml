@@ -1,8 +1,11 @@
 # ============================================================
 # 🚀 PRIORITY COMMANDER — Coolify Docker Compose
 # ============================================================
-# Coolify handles SSL automatically via Traefik.
-# SERVICE_FQDN_WEB is set by Coolify from the Domains field.
+# COOLIFY SETUP:
+#   1. Set Domains for web to: https://project.trendss.net:3000
+#      (the :3000 tells Coolify the internal container port)
+#   2. Coolify auto-handles SSL, Traefik labels, networking
+#   3. Do NOT add custom traefik labels — Coolify manages them
 # ============================================================
 
 services:
@@ -20,16 +23,6 @@ services:
       - REDIS_URL=redis://redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-Pr10r1ty-C0mmand3r-2026}
       - ALLOWED_ORIGINS=https://project.trendss.net
-      - SERVICE_FQDN_WEB=${SERVICE_FQDN_WEB:-project.trendss.net}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.pc-web.rule=Host(`project.trendss.net`)"
-      - "traefik.http.routers.pc-web.entryPoints=http,https"
-      - "traefik.http.routers.pc-web-secure.rule=Host(`project.trendss.net`)"
-      - "traefik.http.routers.pc-web-secure.entryPoints=https"
-      - "traefik.http.routers.pc-web-secure.tls=true"
-      - "traefik.http.routers.pc-web-secure.tls.certresolver=letsencrypt"
-      - "traefik.http.services.pc-web.loadbalancer.server.port=3000"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
@@ -39,9 +32,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    networks:
-      - coolify
-      - default
 
   redis:
     image: redis:7-alpine
@@ -58,13 +48,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    networks:
-      - default
 
 volumes:
   redis-data:
     driver: local
-
-networks:
-  coolify:
-    external: true
