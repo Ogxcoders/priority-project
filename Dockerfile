@@ -5,7 +5,6 @@
 #   Build Pack: Dockerfile
 #   Port Exposes: 3000
 #   Domain: https://project.trendss.net
-#   Health Check: Disabled (or set path to / with port 3000)
 # ============================================================
 
 # ── Stage 1: Install dependencies ──
@@ -55,8 +54,5 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
-
-# NO HEALTHCHECK here — Coolify manages its own healthcheck
-# Disable healthcheck in Coolify UI or set it to http://127.0.0.1:3000
 
 CMD ["node", "server.js"]
