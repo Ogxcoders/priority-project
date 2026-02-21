@@ -17,7 +17,7 @@ const TAB_HEADERS: Record<string, string> = {
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
     const { user, loading: authLoading } = useAuth();
-    const { profile, modal, setModal, toast, dataLoading } = useData();
+    const { profile, modal, setModal, toast, dataLoading, enrichedProjects } = useData();
     const router = useRouter();
     const pathname = usePathname();
     const isEdu = profile?.theme === 'eduplex';
@@ -120,10 +120,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 <div className="fab-overlay" style={{ position: 'fixed', inset: 0, zIndex: 60 }} onClick={() => setModal(null)}>
                     <div className="fab-options" style={{ position: 'absolute', bottom: 56, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', gap: 6, animation: 'fadeIn .2s ease' }}>
                         {([
-                            { type: 'addTask' as const, icon: 'assignment', label: 'New Quest', clr: '#FF4500' },
-                            { type: 'addProject' as const, icon: 'inventory_2', label: 'New Campaign', clr: '#3b82f6' },
-                            { type: 'addSubtask' as const, icon: 'checklist', label: 'New Subtask', clr: '#fbbf24' },
-                        ]).map(opt => (
+                            { type: 'addTask' as const, icon: 'assignment', label: 'New Quest', clr: '#FF4500', needsProject: true },
+                            { type: 'addProject' as const, icon: 'inventory_2', label: 'New Campaign', clr: '#3b82f6', needsProject: false },
+                            { type: 'addSubtask' as const, icon: 'checklist', label: 'New Subtask', clr: '#fbbf24', needsProject: true },
+                        ]).filter(opt => !opt.needsProject || (enrichedProjects && enrichedProjects.length > 0)).map(opt => (
                             <button key={opt.type} onClick={e => { e.stopPropagation(); setModal({ type: opt.type }); }} style={{
                                 display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px',
                                 background: isEdu ? '#FFFFFF' : 'rgba(15,15,18,0.95)', backdropFilter: 'blur(20px)',
