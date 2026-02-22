@@ -122,7 +122,7 @@ export async function deleteSubtask(id: string): Promise<void> {
 }
 
 /* ==========================================================
-   BULK OPERATIONS
+   BULK OPERATIONS (parallelized for speed)
 ========================================================== */
 export async function deleteTasksForProject(userId: string, projectId: string): Promise<void> {
     const tasks = await databases.listDocuments(DB_ID, COLLECTIONS.TASKS, [
@@ -130,18 +130,21 @@ export async function deleteTasksForProject(userId: string, projectId: string): 
         Query.equal('projectId', projectId),
         Query.limit(500),
     ]);
-    for (const t of tasks.documents) {
-        // Delete subtasks for each task
-        const subs = await databases.listDocuments(DB_ID, COLLECTIONS.SUBTASKS, [
-            Query.equal('userId', userId),
-            Query.equal('taskId', t.$id),
-            Query.limit(500),
-        ]);
-        for (const s of subs.documents) {
-            await databases.deleteDocument(DB_ID, COLLECTIONS.SUBTASKS, s.$id);
-        }
-        await databases.deleteDocument(DB_ID, COLLECTIONS.TASKS, t.$id);
-    }
+    // Fetch all subtasks for all tasks in parallel
+    const subResults = await Promise.all(
+        tasks.documents.map(t =>
+            databases.listDocuments(DB_ID, COLLECTIONS.SUBTASKS, [
+                Query.equal('userId', userId),
+                Query.equal('taskId', t.$id),
+                Query.limit(500),
+            ])
+        )
+    );
+    // Delete all subtasks in parallel
+    const allSubs = subResults.flatMap(r => r.documents);
+    await Promise.all(allSubs.map(s => databases.deleteDocument(DB_ID, COLLECTIONS.SUBTASKS, s.$id)));
+    // Delete all tasks in parallel
+    await Promise.all(tasks.documents.map(t => databases.deleteDocument(DB_ID, COLLECTIONS.TASKS, t.$id)));
 }
 
 export async function deleteSubtasksForTask(userId: string, taskId: string): Promise<void> {
@@ -150,7 +153,5 @@ export async function deleteSubtasksForTask(userId: string, taskId: string): Pro
         Query.equal('taskId', taskId),
         Query.limit(500),
     ]);
-    for (const s of subs.documents) {
-        await databases.deleteDocument(DB_ID, COLLECTIONS.SUBTASKS, s.$id);
-    }
+    await Promise.all(subs.documents.map(s => databases.deleteDocument(DB_ID, COLLECTIONS.SUBTASKS, s.$id)));
 }

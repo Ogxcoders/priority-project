@@ -15,6 +15,7 @@ export default function ProfilePage() {
     const isEdu = profile?.theme === 'eduplex';
     const acBase = isEdu ? '200,249,2' : '255,69,0';
     const hc = isEdu ? '#C8F902' : '#FF4500';
+    const showLoot = profile?.showLoot ?? false;
 
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -80,7 +81,7 @@ export default function ProfilePage() {
                 {[
                     { l: 'Rank', v: '#' + stats.level, extra: 'LVL ' + stats.level, ec: '#4ade80', highlight: false },
                     { l: 'Completed', v: stats.totalCompleted, extra: 'Tasks', ec: 'var(--primary)', highlight: true },
-                    { l: 'Revenue', v: cs + stats.totalMoney.toLocaleString(), extra: 'Total Loot', ec: '#4ade80', highlight: false },
+                    ...(showLoot ? [{ l: 'Revenue', v: cs + stats.totalMoney.toLocaleString(), extra: 'Total Loot', ec: '#4ade80', highlight: false }] : []),
                 ].map((s, i) => (
                     <div key={i} className="glass-card glow-border" style={{ borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative', overflow: 'hidden', transition: 'all .3s', cursor: 'pointer' }}>
                         {s.highlight && <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(to bottom, rgba(${acBase},0.1), transparent)` }} />}

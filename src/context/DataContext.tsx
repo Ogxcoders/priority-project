@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { client, DB_ID } from '@/lib/appwrite';
 import * as db from '@/lib/db';
@@ -17,16 +17,17 @@ interface DataContextType {
     // CRUD
     refreshAll: () => Promise<void>;
     updateProfileField: (field: string, value: unknown) => Promise<void>;
-    addProject: (name: string, money: number, priority: number, color: string) => Promise<void>;
+    addProject: (name: string, money: number, priority: number, color: string) => Promise<string>;
     updateProjectField: (id: string, field: string, value: unknown) => Promise<void>;
     removeProject: (id: string) => Promise<void>;
-    addTask: (projectId: string, name: string, priority: number, slot: number | null, date: string | null) => Promise<void>;
+    addTask: (projectId: string, name: string, priority: number, slot: number | null, slotEnd: number | null, date: string | null, clonedFrom?: string | null) => Promise<string>;
     updateTaskField: (id: string, field: string, value: unknown) => Promise<void>;
     toggleTask: (id: string) => Promise<void>;
     moveTask: (taskId: string, fromProjectId: string, toProjectId: string) => Promise<void>;
     removeTask: (id: string) => Promise<void>;
     addSubtask: (taskId: string, name: string) => Promise<void>;
     toggleSubtask: (id: string) => Promise<void>;
+    updateSubtaskField: (id: string, field: string, value: unknown) => Promise<void>;
     removeSubtask: (id: string) => Promise<void>;
     shiftPriorities: (targetPri: number, excludeId: string | null) => Promise<void>;
     // Modal
@@ -50,33 +51,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const [modal, setModal] = useState<ModalType>(null);
     const [toast, setToast] = useState<string | null>(null);
     const [dataLoading, setDataLoading] = useState(true);
+    const initialLoadDone = useRef(false);
 
     const showToast = useCallback((msg: string) => {
         setToast(msg);
         setTimeout(() => setToast(null), 3000);
     }, []);
 
+    // Helper: save cache in background (debounced, non-blocking)
+    const cacheTimer = useRef<NodeJS.Timeout | null>(null);
+    const saveCache = useCallback((userId: string, p: Project[], t: Task[], s: Subtask[], prof?: Profile | null) => {
+        if (cacheTimer.current) clearTimeout(cacheTimer.current);
+        cacheTimer.current = setTimeout(() => {
+            try {
+                localStorage.setItem(`cache_proj_${userId}`, JSON.stringify(p));
+                localStorage.setItem(`cache_tasks_${userId}`, JSON.stringify(t));
+                localStorage.setItem(`cache_sub_${userId}`, JSON.stringify(s));
+                if (prof) localStorage.setItem(`cache_profile_${userId}`, JSON.stringify(prof));
+            } catch { /* quota exceeded - ignore */ }
+        }, 500);
+    }, []);
+
     /* ===== LOAD ALL DATA ===== */
     const refreshAll = useCallback(async () => {
         if (!user) return;
 
-        // Optimistic Load from Cache for 0ms visual delay (App-like feel)
-        try {
-            const cachedProfile = localStorage.getItem(`cache_profile_${user.$id}`);
-            const cachedProj = localStorage.getItem(`cache_proj_${user.$id}`);
-            const cachedTasks = localStorage.getItem(`cache_tasks_${user.$id}`);
-            const cachedSub = localStorage.getItem(`cache_sub_${user.$id}`);
+        // Load from cache first for instant UI (only on first load)
+        if (!initialLoadDone.current) {
+            try {
+                const cachedProfile = localStorage.getItem(`cache_profile_${user.$id}`);
+                const cachedProj = localStorage.getItem(`cache_proj_${user.$id}`);
+                const cachedTasks = localStorage.getItem(`cache_tasks_${user.$id}`);
+                const cachedSub = localStorage.getItem(`cache_sub_${user.$id}`);
 
-            if (cachedProfile && cachedProj && cachedTasks) {
-                setProfile(JSON.parse(cachedProfile));
-                setProjects(JSON.parse(cachedProj));
-                setTasks(JSON.parse(cachedTasks));
-                setSubtasks(cachedSub ? JSON.parse(cachedSub) : []);
-                setDataLoading(false); // Instantly dismiss loading screen
-            } else {
-                setDataLoading(true);
-            }
-        } catch (e) { }
+                if (cachedProfile && cachedProj && cachedTasks) {
+                    setProfile(JSON.parse(cachedProfile));
+                    setProjects(JSON.parse(cachedProj));
+                    setTasks(JSON.parse(cachedTasks));
+                    setSubtasks(cachedSub ? JSON.parse(cachedSub) : []);
+                    setDataLoading(false);
+                } else {
+                    setDataLoading(true);
+                }
+            } catch { /* corrupt cache */ }
+        }
 
         try {
             const [p, projs, tks, subs] = await Promise.all([
@@ -97,43 +115,66 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     stealth: false,
                     sound: true,
                     confirmTaskDelete: true,
+                    showLoot: false,
                     startHour: 8,
                     endHour: 19,
                 });
                 setProfile(newProfile);
             } else {
                 setProfile(p);
-                localStorage.setItem(`cache_profile_${user.$id}`, JSON.stringify(p));
             }
             setProjects(projs);
             setTasks(tks);
             setSubtasks(subs);
-            localStorage.setItem(`cache_proj_${user.$id}`, JSON.stringify(projs));
-            localStorage.setItem(`cache_tasks_${user.$id}`, JSON.stringify(tks));
-            localStorage.setItem(`cache_sub_${user.$id}`, JSON.stringify(subs));
+            initialLoadDone.current = true;
+            // Cache in background
+            saveCache(user.$id, projs, tks, subs, p || undefined);
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {
             setDataLoading(false);
         }
-    }, [user]);
+    }, [user, saveCache]);
 
     useEffect(() => { if (user) refreshAll(); }, [user, refreshAll]);
 
-    /* ===== REALTIME ===== */
+    /* ===== REALTIME — debounced, with WebSocket error protection ===== */
     useEffect(() => {
         if (!user) return;
         const channel = `databases.${DB_ID}.collections.*.documents`;
-        const unsub = client.subscribe(channel, () => {
-            refreshAll();
-        });
-        return () => { unsub(); };
+        let debounceTimer: NodeJS.Timeout;
+        let unsub: (() => void) | null = null;
+        const setupSub = () => {
+            try {
+                unsub = client.subscribe(channel, () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        refreshAll();
+                    }, 2000);
+                });
+            } catch (err) {
+                console.warn('Realtime subscription failed, retrying in 5s:', err);
+                setTimeout(setupSub, 5000);
+            }
+        };
+        // Delay initial subscription to let WebSocket connect
+        const initTimer = setTimeout(setupSub, 1000);
+        return () => { clearTimeout(initTimer); unsub?.(); clearTimeout(debounceTimer); };
     }, [user, refreshAll]);
 
-    /* ===== ENRICHED DATA ===== */
-    const enrichedProjects: ProjectWithTasks[] = projects
-        .sort((a, b) => a.priority - b.priority)
-        .map(proj => {
+    /* ===== AUTO-SAVE CACHE on any state change ===== */
+    const cacheReady = useRef(false);
+    useEffect(() => {
+        // Skip the first render (initial load from cache — don't re-save stale data)
+        if (!user || !initialLoadDone.current) return;
+        if (!cacheReady.current) { cacheReady.current = true; return; }
+        saveCache(user.$id, projects, tasks, subtasks, profile);
+    }, [user, projects, tasks, subtasks, profile, saveCache]);
+
+    /* ===== ENRICHED DATA (properly memoized) ===== */
+    const enrichedProjects = useMemo<ProjectWithTasks[]>(() => {
+        const sorted = [...projects].sort((a, b) => a.priority - b.priority);
+        return sorted.map(proj => {
             const projTasks: TaskWithContext[] = tasks
                 .filter(t => t.projectId === proj.$id)
                 .sort((a, b) => a.priority - b.priority)
@@ -145,58 +186,80 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     projectPriority: proj.priority,
                     subtasks: subtasks.filter(s => s.taskId === t.$id).sort((a, b) => a.order - b.order),
                 }));
+            const originals = projTasks.filter(t => !t.clonedFrom);
             return {
                 ...proj,
                 tasks: projTasks,
-                completedCount: projTasks.filter(t => t.done).length,
-                pendingCount: projTasks.filter(t => !t.done).length,
-                progressPct: projTasks.length > 0 ? Math.round(projTasks.filter(t => t.done).length / projTasks.length * 100) : 0,
+                completedCount: originals.filter(t => t.done).length,
+                pendingCount: originals.filter(t => !t.done).length,
+                progressPct: originals.length > 0 ? Math.round(originals.filter(t => t.done).length / originals.length * 100) : 0,
             };
         });
+    }, [projects, tasks, subtasks]);
 
-    const totalCompleted = tasks.filter(t => t.done).length;
-    const totalMoney = projects.reduce((s, p) => s + p.money, 0);
-    const stats = computeStats(totalCompleted, tasks.length, totalMoney, profile?.streak || 0, projects.length);
+    const stats = useMemo(() => {
+        const originalTasks = tasks.filter(t => !t.clonedFrom);
+        const totalCompleted = originalTasks.filter(t => t.done).length;
+        const totalMoney = projects.reduce((s, p) => s + p.money, 0);
+        return computeStats(totalCompleted, originalTasks.length, totalMoney, profile?.streak || 0, projects.length);
+    }, [tasks, projects, profile?.streak]);
 
-    /* ===== CRUD OPERATIONS ===== */
+    /* ===== OPTIMISTIC CRUD — Update UI first, sync DB in background ===== */
     const updateProfileField = async (field: string, value: unknown) => {
         if (!profile) return;
-        await db.updateProfile(profile.$id, { [field]: value } as Partial<Profile>);
+        // Optimistic
         setProfile(prev => prev ? { ...prev, [field]: value } : prev);
+        // Background sync
+        db.updateProfile(profile.$id, { [field]: value } as Partial<Profile>).catch(() => {
+            showToast('Failed to save — reverting');
+            refreshAll();
+        });
     };
 
-    const addProject = async (name: string, money: number, priority: number, color: string) => {
-        if (!user) return;
+    const addProject = async (name: string, money: number, priority: number, color: string): Promise<string> => {
+        if (!user) return '';
         const proj = await db.createProject({ userId: user.$id, name, money, priority, color });
         setProjects(prev => [...prev, proj]);
+        return proj.$id;
     };
 
     const updateProjectField = async (id: string, field: string, value: unknown) => {
-        await db.updateProject(id, { [field]: value } as Partial<Project>);
         setProjects(prev => prev.map(p => p.$id === id ? { ...p, [field]: value } : p));
+        db.updateProject(id, { [field]: value } as Partial<Project>).catch(() => {
+            showToast('Failed to save');
+            refreshAll();
+        });
     };
 
     const removeProject = async (id: string) => {
         if (!user) return;
-        await db.deleteTasksForProject(user.$id, id);
-        await db.deleteProject(id);
+        const removedTaskIds = new Set(tasks.filter(t => t.projectId === id).map(t => t.$id));
         setProjects(prev => prev.filter(p => p.$id !== id));
         setTasks(prev => prev.filter(t => t.projectId !== id));
-        setSubtasks(prev => {
-            const taskIds = new Set(tasks.filter(t => t.projectId === id).map(t => t.$id));
-            return prev.filter(s => !taskIds.has(s.taskId));
+        setSubtasks(prev => prev.filter(s => !removedTaskIds.has(s.taskId)));
+        Promise.all([
+            db.deleteTasksForProject(user.$id, id),
+            db.deleteProject(id),
+        ]).catch(() => {
+            showToast('Failed to delete — reverting');
+            refreshAll();
         });
     };
 
-    const addTask = async (projectId: string, name: string, priority: number, slot: number | null, date: string | null) => {
-        if (!user) return;
-        const task = await db.createTask({ userId: user.$id, projectId, name, priority, done: false, slot, date });
+    const addTask = async (projectId: string, name: string, priority: number, slot: number | null, slotEnd: number | null, date: string | null, clonedFrom: string | null = null): Promise<string> => {
+        if (!user) return '';
+        const task = await db.createTask({ userId: user.$id, projectId, name, priority, done: false, slot, slotEnd, date, clonedFrom });
         setTasks(prev => [...prev, task]);
+        return projectId;
     };
 
     const updateTaskField = async (id: string, field: string, value: unknown) => {
-        await db.updateTask(id, { [field]: value } as Partial<Task>);
+        // Optimistic — use prev => to get latest state (critical for rapid sequential calls)
         setTasks(prev => prev.map(t => t.$id === id ? { ...t, [field]: value } : t));
+        db.updateTask(id, { [field]: value } as Partial<Task>).catch(() => {
+            showToast('Failed to save');
+            refreshAll();
+        });
     };
 
     const toggleTask = async (id: string) => {
@@ -207,21 +270,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
             const allDone = taskSubs.every(s => s.done);
             if (!allDone) { showToast('Please complete all subtasks first!'); return; }
         }
-        await db.updateTask(id, { done: !task.done });
         setTasks(prev => prev.map(t => t.$id === id ? { ...t, done: !t.done } : t));
+        db.updateTask(id, { done: !task.done }).catch(() => {
+            showToast('Failed to update');
+            refreshAll();
+        });
     };
 
     const moveTask = async (taskId: string, _fromProjectId: string, toProjectId: string) => {
-        await db.updateTask(taskId, { projectId: toProjectId });
         setTasks(prev => prev.map(t => t.$id === taskId ? { ...t, projectId: toProjectId } : t));
+        db.updateTask(taskId, { projectId: toProjectId }).catch(() => {
+            showToast('Failed to move');
+            refreshAll();
+        });
     };
 
     const removeTask = async (id: string) => {
         if (!user) return;
-        await db.deleteSubtasksForTask(user.$id, id);
-        await db.deleteTask(id);
         setTasks(prev => prev.filter(t => t.$id !== id));
         setSubtasks(prev => prev.filter(s => s.taskId !== id));
+        Promise.all([
+            db.deleteSubtasksForTask(user.$id, id),
+            db.deleteTask(id),
+        ]).catch(() => {
+            showToast('Failed to delete');
+            refreshAll();
+        });
     };
 
     const addSubtask = async (taskId: string, name: string) => {
@@ -234,31 +308,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const toggleSubtask = async (id: string) => {
         const sub = subtasks.find(s => s.$id === id);
         if (!sub) return;
-        await db.updateSubtask(id, { done: !sub.done });
-        setSubtasks(prev => prev.map(s => s.$id === id ? { ...s, done: !s.done } : s));
-        // Auto-complete parent task if all subs done
-        const taskSubs = subtasks.map(s => s.$id === id ? { ...s, done: !s.done } : s).filter(s => s.taskId === sub.taskId);
-        const allDone = taskSubs.length > 0 && taskSubs.every(s => s.done);
-        const task = tasks.find(t => t.$id === sub.taskId);
-        if (task && task.done !== allDone) {
-            await db.updateTask(sub.taskId, { done: allDone });
-            setTasks(prev => prev.map(t => t.$id === sub.taskId ? { ...t, done: allDone } : t));
-        }
+        const newDone = !sub.done;
+        setSubtasks(prev => prev.map(s => s.$id === id ? { ...s, done: newDone } : s));
+        db.updateSubtask(id, { done: newDone }).catch(() => {
+            showToast('Failed to update');
+            refreshAll();
+        });
     };
 
     const removeSubtask = async (id: string) => {
-        await db.deleteSubtask(id);
         setSubtasks(prev => prev.filter(s => s.$id !== id));
+        db.deleteSubtask(id).catch(() => {
+            showToast('Failed to delete');
+            refreshAll();
+        });
+    };
+
+    const updateSubtaskField = async (id: string, field: string, value: unknown) => {
+        setSubtasks(prev => prev.map(s => s.$id === id ? { ...s, [field]: value } : s));
+        db.updateSubtask(id, { [field]: value } as Partial<Subtask>).catch(() => {
+            showToast('Failed to save');
+            refreshAll();
+        });
     };
 
     const shiftPriorities = async (targetPri: number, excludeId: string | null) => {
-        const toShift = projects.filter(p => p.priority >= targetPri && p.$id !== excludeId);
-        for (const p of toShift) {
-            await db.updateProject(p.$id, { priority: p.priority + 1 });
-        }
+        // Optimistic
         setProjects(prev => prev.map(p =>
             p.priority >= targetPri && p.$id !== excludeId ? { ...p, priority: p.priority + 1 } : p
         ));
+        const toShift = projects.filter(p => p.priority >= targetPri && p.$id !== excludeId);
+        Promise.all(toShift.map(p => db.updateProject(p.$id, { priority: p.priority + 1 }))).catch(() => refreshAll());
     };
 
     return (
@@ -268,7 +348,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             refreshAll, updateProfileField,
             addProject, updateProjectField, removeProject,
             addTask, updateTaskField, toggleTask, moveTask, removeTask,
-            addSubtask, toggleSubtask, removeSubtask,
+            addSubtask, toggleSubtask, updateSubtaskField, removeSubtask,
             shiftPriorities,
             modal, setModal,
             toast, showToast,

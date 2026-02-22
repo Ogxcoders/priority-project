@@ -17,7 +17,9 @@ export default function AddSubtaskModal() {
         try {
             await addSubtask(taskId, name.trim());
             showToast('Subtask added! ✅');
-            setModal(null);
+            const parentTask = allTasks.find(t => t.$id === taskId);
+            const parentPid = parentTask ? enrichedProjects.find(p => p.tasks.some(t => t.$id === taskId))?.$id : null;
+            setModal(parentPid ? { type: 'projectDetail', pid: parentPid } : null);
         } catch {
             showToast('Failed to add subtask');
         } finally {

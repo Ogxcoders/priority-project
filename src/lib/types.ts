@@ -17,6 +17,7 @@ export interface Profile {
     stealth: boolean;
     sound: boolean;
     confirmTaskDelete: boolean;
+    showLoot: boolean;
     startHour: number;
     endHour: number;
 }
@@ -40,7 +41,9 @@ export interface Task {
     priority: number;
     done: boolean;
     slot: number | null;
+    slotEnd: number | null;
     date: string | null;
+    clonedFrom: string | null;
 }
 
 /* ===== Subtask ===== */

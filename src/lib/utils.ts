@@ -5,7 +5,10 @@ export function uid(): string {
 
 /* ===== Date to String (YYYY-MM-DD) ===== */
 export function toDS(d: Date): string {
-    return d.toISOString().split('T')[0];
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }
 
 /* ===== Format Date for Display ===== */

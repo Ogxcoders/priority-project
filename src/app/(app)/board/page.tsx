@@ -6,6 +6,7 @@ export default function BoardPage() {
     const { enrichedProjects, profile, setModal } = useData();
     const cs = currSym(profile?.currency || 'USD');
     const isEdu = profile?.theme === 'eduplex';
+    const showLoot = profile?.showLoot ?? false;
 
     return (
         <div className="anim-entry">
@@ -15,10 +16,12 @@ export default function BoardPage() {
                     <span style={{ fontSize: 9, color: 'var(--t-666)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Campaigns</span>
                     <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Orbitron', color: 'var(--t-fff)' }}>{enrichedProjects.length}</span>
                 </div>
-                <div style={{ flex: 1, padding: 10, borderRadius: 12, background: 'var(--b-40)', border: '1px solid var(--g-05)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: 9, color: 'var(--t-666)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Total Loot</span>
-                    <span className="text-gold" style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Orbitron' }}>{cs}{enrichedProjects.reduce((s, p) => s + p.money, 0).toLocaleString()}</span>
-                </div>
+                {showLoot && (
+                    <div style={{ flex: 1, padding: 10, borderRadius: 12, background: 'var(--b-40)', border: '1px solid var(--g-05)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <span style={{ fontSize: 9, color: 'var(--t-666)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Total Loot</span>
+                        <span className="text-gold" style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Orbitron' }}>{cs}{enrichedProjects.reduce((s, p) => s + p.money, 0).toLocaleString()}</span>
+                    </div>
+                )}
             </div>
 
             {enrichedProjects.map((p) => {
@@ -56,10 +59,12 @@ export default function BoardPage() {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid var(--g-05)', paddingTop: 14, position: 'relative', zIndex: 10 }}>
-                                <div>
-                                    <span style={{ fontSize: 10, color: 'var(--t-666)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Total Bounty</span>
-                                    <p className="text-gold" style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 28 }}>{cs}{p.money.toLocaleString()}</p>
-                                </div>
+                                {showLoot && (
+                                    <div>
+                                        <span style={{ fontSize: 10, color: 'var(--t-666)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Total Bounty</span>
+                                        <p className="text-gold" style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 28 }}>{cs}{p.money.toLocaleString()}</p>
+                                    </div>
+                                )}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                                     <span style={{ fontSize: 10, color: 'var(--t-666)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Pending</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--g-05)', padding: '4px 8px', borderRadius: 8, border: '1px solid var(--g-05)', marginTop: 4 }}>

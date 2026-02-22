@@ -40,7 +40,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     if (authLoading || !user) {
         return (
             <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
-                <span className="material-icons-round" style={{ fontSize: 48, color: 'var(--primary)', animation: 'borderPulse 2s infinite' }}>rocket_launch</span>
+                <div style={{ textAlign: 'center' }}>
+                    <div className="loading-icon-wrap">
+                        <span className="material-icons-round" style={{ fontSize: 40, color: 'var(--primary)' }}>rocket_launch</span>
+                    </div>
+                    <div className="loading-bar"><div className="loading-bar-fill" /></div>
+                </div>
             </div>
         );
     }
@@ -49,8 +54,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         return (
             <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
                 <div style={{ textAlign: 'center' }}>
-                    <span className="material-icons-round" style={{ fontSize: 48, color: 'var(--primary)', animation: 'borderPulse 2s infinite' }}>downloading</span>
-                    <p style={{ fontFamily: 'Orbitron', fontSize: 10, color: 'var(--t-666)', marginTop: 12, letterSpacing: 2 }}>LOADING MISSION DATA...</p>
+                    <div className="loading-icon-wrap">
+                        <span className="material-icons-round" style={{ fontSize: 40, color: 'var(--primary)' }}>downloading</span>
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--t-666)', marginTop: 14, letterSpacing: 1.5, fontWeight: 600 }}>Loading data<span className="loading-dots" /></p>
+                    <div className="loading-bar"><div className="loading-bar-fill" /></div>
                 </div>
             </div>
         );
@@ -66,8 +74,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             {/* Background Effects (dark theme only) */}
             {!isEdu && (
                 <div className="bg-effects">
-                    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, background: 'radial-gradient(circle at top center,#2a1510 0%,#050505 60%)', opacity: 0.8 }} />
-                    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+                    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: -1, background: 'radial-gradient(circle at top center,#2a1510 0%,#050505 60%)', opacity: 0.8 }} />
+                    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: -1, overflow: 'hidden' }}>
                         <div style={{ position: 'absolute', top: '20%', left: '20%', width: 400, height: 400, background: 'rgba(255,69,0,0.1)', borderRadius: '50%', filter: 'blur(120px)' }} />
                         <div style={{ position: 'absolute', bottom: '10%', right: '-5%', width: 300, height: 300, background: 'rgba(255,69,0,0.05)', borderRadius: '50%', filter: 'blur(100px)' }} />
                         {[10, 30, 60, 80, 50].map((l, i) => (
@@ -180,7 +188,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             transition: 'all .3s', flexShrink: 0, position: 'relative',
                             boxShadow: isEdu ? '0 0 12px rgba(200,249,2,0.4)' : '0 0 8px rgba(255,69,0,0.35)',
-                            margin: '4px auto',
+                            margin: '0 auto',
                         }}
                     >
                         <span className="material-icons-round" style={{ fontSize: 18 }}>add</span>
@@ -202,8 +210,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
             {/* Toast */}
             {toast && (
-                <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: isEdu ? '#1A1B27' : 'rgba(255,69,0,0.95)', color: '#fff', padding: '12px 24px', borderRadius: 24, fontSize: 13, fontFamily: 'Rajdhani', fontWeight: 700, zIndex: 9999, pointerEvents: 'none', boxShadow: isEdu ? '0 4px 20px rgba(0,0,0,0.15)' : '0 8px 30px rgba(255,69,0,0.4)', animation: 'entryUp .3s ease', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="material-icons-round" style={{ fontSize: 18 }}>warning_amber</span>
+                <div style={{ position: 'fixed', top: 20, right: 20, left: 'auto', transform: 'none', background: isEdu ? '#1A1B27' : 'rgba(255,69,0,0.95)', color: '#fff', padding: '12px 24px', borderRadius: 14, fontSize: 13, fontFamily: 'Rajdhani', fontWeight: 700, zIndex: 9999, pointerEvents: 'none', boxShadow: isEdu ? '0 4px 20px rgba(0,0,0,0.15)' : '0 8px 30px rgba(255,69,0,0.4)', animation: 'fadeIn .15s ease', display: 'flex', alignItems: 'center', gap: 8, maxWidth: 340 }}>
+                    <span className="material-icons-round" style={{ fontSize: 18 }}>check_circle</span>
                     {toast}
                 </div>
             )}

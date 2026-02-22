@@ -11,18 +11,18 @@ export default function AddProjectModal() {
     const [color, setColor] = useState(PCOLS[0]);
     const [loading, setLoading] = useState(false);
     const isEdu = profile?.theme === 'eduplex';
+    const showLoot = profile?.showLoot ?? false;
 
     const handleSubmit = async () => {
         if (!name.trim()) { showToast('Campaign name is required!'); return; }
         const p = parseInt(priority) || enrichedProjects.length + 1;
         setLoading(true);
         try {
-            // Check priority conflict
             const conflict = enrichedProjects.find(proj => proj.priority === p);
             if (conflict) await shiftPriorities(p, null);
-            await addProject(name.trim(), parseInt(money) || 0, p, color);
+            const newId = await addProject(name.trim(), parseInt(money) || 0, p, color);
             showToast('Campaign created! ⚔️');
-            setModal(null);
+            setModal(newId ? { type: 'projectDetail', pid: newId } : null);
         } catch {
             showToast('Failed to create campaign');
         } finally {
@@ -47,10 +47,12 @@ export default function AddProjectModal() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                    <div style={{ flex: 1 }}>
-                        <label className="input-label">Bounty Value</label>
-                        <input className="input-field" type="number" placeholder="0" value={money} onChange={e => setMoney(e.target.value)} />
-                    </div>
+                    {showLoot && (
+                        <div style={{ flex: 1 }}>
+                            <label className="input-label">Bounty Value</label>
+                            <input className="input-field" type="number" placeholder="0" value={money} onChange={e => setMoney(e.target.value)} />
+                        </div>
+                    )}
                     <div style={{ flex: 1 }}>
                         <label className="input-label">Priority</label>
                         <input className="input-field" type="number" min="1" placeholder={String(enrichedProjects.length + 1)} value={priority} onChange={e => setPriority(e.target.value)} />

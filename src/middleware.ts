@@ -67,7 +67,7 @@ export function middleware(request: NextRequest) {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self' https://login.trendss.net https://accounts.google.com",
+            "connect-src 'self' https://login.trendss.net wss://login.trendss.net https://accounts.google.com",
             "frame-src https://accounts.google.com",
         ].join('; ')
     );

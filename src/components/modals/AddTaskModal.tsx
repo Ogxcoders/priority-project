@@ -9,17 +9,27 @@ export default function AddTaskModal({ returnTo, preSlot, preDate }: { returnTo?
     const [projectId, setProjectId] = useState(enrichedProjects[0]?.$id || '');
     const [priority, setPriority] = useState('1');
     const [slot, setSlot] = useState(preSlot != null ? String(preSlot) : '');
+    const [slotEnd, setSlotEnd] = useState('');
     const [date, setDate] = useState(preDate || toDS(new Date()));
     const [loading, setLoading] = useState(false);
+
+    const fmtH = (h: number) => `${h % 12 || 12}${h >= 12 ? ' PM' : ' AM'}`;
 
     const handleSubmit = async () => {
         if (!name.trim()) { showToast('Quest name is required!'); return; }
         if (!projectId) { showToast('Select a campaign first!'); return; }
+        const slotVal = slot ? parseInt(slot) : null;
+        const slotEndVal = slotEnd ? parseInt(slotEnd) : null;
+        // Validate slotEnd > slot
+        if (slotVal != null && slotEndVal != null && slotEndVal <= slotVal) {
+            showToast('End time must be after start time!');
+            return;
+        }
         setLoading(true);
         try {
-            await addTask(projectId, name.trim(), parseInt(priority) || 1, slot ? parseInt(slot) : null, date || null);
+            const pid = await addTask(projectId, name.trim(), parseInt(priority) || 1, slotVal, slotEndVal, date || null);
             showToast('Quest deployed! ⚔️');
-            setModal(returnTo || null);
+            setModal(pid ? { type: 'projectDetail', pid } : (returnTo || null));
         } catch {
             showToast('Failed to create quest');
         } finally {
@@ -62,15 +72,31 @@ export default function AddTaskModal({ returnTo, preSlot, preDate }: { returnTo?
                         </select>
                     </div>
                     <div style={{ flex: 1 }}>
-                        <label className="input-label">Time Slot</label>
-                        <select className="input-field" value={slot} onChange={e => setSlot(e.target.value)}>
+                        <label className="input-label">Start Time</label>
+                        <select className="input-field" value={slot} onChange={e => { setSlot(e.target.value); if (!e.target.value) setSlotEnd(''); }}>
                             <option value="">None</option>
                             {Array.from({ length: 24 }, (_, i) => (
-                                <option key={i} value={i}>{(i % 12 || 12) + (i >= 12 ? ' PM' : ' AM')}</option>
+                                <option key={i} value={i}>{fmtH(i)}</option>
                             ))}
                         </select>
                     </div>
                 </div>
+
+                {/* Time Block End - only show when a start slot is selected */}
+                {slot && (
+                    <div style={{ marginBottom: 16 }}>
+                        <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span className="material-icons-round" style={{ fontSize: 14, color: 'var(--primary)' }}>timelapse</span>
+                            End Time (Time Block)
+                        </label>
+                        <select className="input-field" value={slotEnd} onChange={e => setSlotEnd(e.target.value)}>
+                            <option value="">Single hour only</option>
+                            {Array.from({ length: 24 - parseInt(slot) - 1 }, (_, i) => parseInt(slot) + 1 + i).map(h => (
+                                <option key={h} value={h}>{fmtH(h)} ({h - parseInt(slot)}h block)</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
                 <div style={{ marginBottom: 20 }}>
                     <label className="input-label">Date</label>

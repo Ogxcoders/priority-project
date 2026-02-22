@@ -5,40 +5,43 @@ import { useData } from '@/context/DataContext';
 import { currSym } from '@/lib/constants';
 
 export default function QuestsPage() {
-    const { enrichedProjects, profile, stats, toggleTask, toggleSubtask, addSubtask, removeTask, removeSubtask, setModal, showToast } = useData();
+    const { enrichedProjects, profile, stats, toggleTask, toggleSubtask, updateSubtaskField, addSubtask, removeTask, removeSubtask, setModal, showToast, updateTaskField } = useData();
     const cs = currSym(profile?.currency || 'USD');
     const isEdu = profile?.theme === 'eduplex';
     const ac = isEdu ? 'rgba(200,249,2,' : 'rgba(255,69,0,';
+    const showLoot = profile?.showLoot ?? false;
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [confirmDelete, setConfirmDelete] = useState<{ type: 'task' | 'subtask', id: string, name: string } | null>(null);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [editingSub, setEditingSub] = useState<string | null>(null);
+    const [editSubName, setEditSubName] = useState('');
 
     useEffect(() => { setMounted(true); }, []);
 
     const sp = [...enrichedProjects].sort((a, b) => a.priority - b.priority || b.money - a.money);
-    const topTask = sp.flatMap(p => p.tasks.filter(t => !t.done).sort((a, b) => a.priority - b.priority).map(t => ({ ...t, pName: p.name }))).at(0);
-    const totalPending = sp.reduce((s, p) => s + p.tasks.filter(t => !t.done).length, 0);
+    const topTask = sp.flatMap(p => p.tasks.filter(t => !t.done && !t.clonedFrom).sort((a, b) => a.priority - b.priority).map(t => ({ ...t, pName: p.name }))).at(0);
+    const totalPending = sp.reduce((s, p) => s + p.tasks.filter(t => !t.done && !t.clonedFrom).length, 0);
 
     const toggleExpand = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
 
     return (
         <div className="anim-entry">
             {mounted && confirmDelete && createPortal(
-                <div className="modal-overlay" style={{ zIndex: 1000 }} onClick={() => setConfirmDelete(null)}>
-                    <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(244,63,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <span className="material-icons-round" style={{ color: '#f43f5e' }}>warning</span>
+                <div className="confirm-overlay" onClick={() => setConfirmDelete(null)}>
+                    <div className="confirm-card" onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span className="material-icons-round" style={{ fontSize: 18, color: '#f43f5e' }}>warning</span>
                             </div>
                             <div>
-                                <h3 style={{ fontFamily: 'Orbitron', fontSize: 16, fontWeight: 700, color: 'var(--t-fff)' }}>Confirm Deletion</h3>
-                                <p style={{ fontSize: 12, color: 'var(--t-666)' }}>Delete <strong style={{ color: 'var(--t-eee)' }}>{confirmDelete.name}</strong>?</p>
+                                <h3>Confirm Deletion</h3>
+                                <p className="confirm-sub">Delete <strong style={{ color: 'var(--t-eee)' }}>{confirmDelete.name}</strong>?</p>
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-                            <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmDelete(null)}>Cancel</button>
-                            <button className="btn-fire" style={{ flex: 1, background: '#f43f5e', border: '1px solid rgba(244,63,94,0.4)', boxShadow: '0 0 15px rgba(244,63,94,0.3)', opacity: loading ? 0.6 : 1 }} disabled={loading} onClick={async () => {
+                            <button className="confirm-cancel" onClick={() => setConfirmDelete(null)}>Cancel</button>
+                            <button className="confirm-delete" style={{ opacity: loading ? 0.6 : 1 }} disabled={loading} onClick={async () => {
                                 setLoading(true);
                                 try {
                                     if (confirmDelete.type === 'task') await removeTask(confirmDelete.id);
@@ -51,7 +54,7 @@ export default function QuestsPage() {
                                     setConfirmDelete(null);
                                 }
                             }}>
-                                <span className="material-icons-round" style={{ fontSize: 16 }}>delete</span>
+                                <span className="material-icons-round" style={{ fontSize: 14 }}>delete</span>
                                 {loading ? 'Deleting...' : 'Delete'}
                             </button>
                         </div>
@@ -79,7 +82,7 @@ export default function QuestsPage() {
             {/* Stats Bar */}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', marginBottom: 16 }}>
                 {[
-                    { l: 'Loot', v: cs + stats.totalMoney.toLocaleString(), cls: 'text-gold' },
+                    ...(showLoot ? [{ l: 'Loot', v: cs + stats.totalMoney.toLocaleString(), cls: 'text-gold' }] : []),
                     { l: 'Level', v: String(stats.level), cls: '' },
                     { l: 'Streak', v: (profile?.streak || 0) + ' Days', cls: '', icon: 'local_fire_department' },
                 ].map((s, i) => (
@@ -102,8 +105,10 @@ export default function QuestsPage() {
             {/* Project Cards with Tasks */}
             {sp.filter(p => p.tasks.some(t => !t.done)).map((proj, pi) => {
                 const clr = proj.color || '#FF4500';
-                const pendingTasks = proj.tasks.filter(t => !t.done);
-                const total = proj.tasks.length;
+                const originalTasks = proj.tasks.filter(t => !t.clonedFrom);
+                // Show originals that are pending OR have pending clones
+                const pendingTasks = originalTasks.filter(t => !t.done || proj.tasks.some(c => c.clonedFrom === t.$id && !c.done));
+                const total = originalTasks.length;
                 const done = total - pendingTasks.length;
                 const pct = total > 0 ? Math.round(done / total * 100) : 0;
                 const isTop = pi === 0;
@@ -125,10 +130,12 @@ export default function QuestsPage() {
                                         </div>
                                         <h3 style={{ fontFamily: isTop ? 'Orbitron' : 'Rajdhani', fontWeight: 700, fontSize: isTop ? 20 : 18, color: 'var(--t-fff,#fff)', lineHeight: 1.2 }}>{proj.name}</h3>
                                     </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <span style={{ fontSize: 9, color: 'var(--t-666,#666)', textTransform: 'uppercase', letterSpacing: 2 }}>Bounty</span>
-                                        <p className={isTop ? 'text-gold' : ''} style={{ fontFamily: isTop ? 'Orbitron' : 'Rajdhani', fontWeight: 700, fontSize: isTop ? 22 : 18, color: isTop ? undefined : 'var(--t-ccc,#ccc)' }}>{cs}{proj.money.toLocaleString()}</p>
-                                    </div>
+                                    {showLoot && (
+                                        <div style={{ textAlign: 'right' }}>
+                                            <span style={{ fontSize: 9, color: 'var(--t-666,#666)', textTransform: 'uppercase', letterSpacing: 2 }}>Bounty</span>
+                                            <p className={isTop ? 'text-gold' : ''} style={{ fontFamily: isTop ? 'Orbitron' : 'Rajdhani', fontWeight: 700, fontSize: isTop ? 22 : 18, color: isTop ? undefined : 'var(--t-ccc,#ccc)' }}>{cs}{proj.money.toLocaleString()}</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Progress bar */}
@@ -145,109 +152,127 @@ export default function QuestsPage() {
                             {/* Task List */}
                             <div style={{ padding: isTop ? '0 20px 16px' : '0 16px 12px', position: 'relative', zIndex: 10 }}>
                                 {pendingTasks.map((task, ti) => {
-                                    const subs = task.subtasks || [];
-                                    const subsDone = subs.filter(s => s.done).length;
-                                    const isOpen = expanded[task.$id];
+                                    const allClones = proj.tasks.filter(t => t.clonedFrom === task.$id);
+                                    const pendingClones = allClones.filter(t => !t.done);
+                                    // Group = only undone members (original if pending + pending clones)
+                                    const group = [...(task.done ? [] : [task]), ...pendingClones];
+                                    if (group.length === 0) return null; // all done, skip
+                                    const hasClones = allClones.length > 0;
+                                    const fmtSlot = (s: number) => `${s % 12 || 12}:00 ${s >= 12 ? 'PM' : 'AM'}`;
 
-                                    return (
-                                        <div key={task.$id}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: ti > 0 ? '1px solid var(--g-04,rgba(255,255,255,0.04))' : 'none' }}>
-                                                {subs.length > 0 ? (
-                                                    <button onClick={() => toggleExpand(task.$id)} style={{ width: 20, height: 20, borderRadius: 4, border: 'none', cursor: 'pointer', background: 'var(--g-05,rgba(255,255,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                                        <span className="material-icons-round" style={{ fontSize: 14, color: 'var(--t-888,#888)' }}>chevron_right</span>
-                                                    </button>
-                                                ) : (
-                                                    <div style={{ width: 20, height: 20, flexShrink: 0 }} />
-                                                )}
-                                                <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleExpand(task.$id)}>
-                                                    <p style={{ fontFamily: 'Rajdhani', fontWeight: 600, fontSize: 14, color: 'var(--t-eee,#eee)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.name}</p>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                                                        {task.slot != null && <span style={{ fontSize: 10, color: 'var(--t-555,#555)', display: 'flex', alignItems: 'center', gap: 3 }}><span className="material-icons-round" style={{ fontSize: 11 }}>schedule</span>{task.slot}:00</span>}
-                                                        {task.date && <span style={{ fontSize: 10, color: 'var(--t-555,#555)', display: 'flex', alignItems: 'center', gap: 3 }}><span className="material-icons-round" style={{ fontSize: 11 }}>event</span>{new Date(task.date + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                                                        {subs.length > 0 && <span style={{ fontSize: 10, color: subsDone === subs.length ? '#4ade80' : 'var(--t-666,#666)', display: 'flex', alignItems: 'center', gap: 3 }}><span className="material-icons-round" style={{ fontSize: 11 }}>checklist</span>{subsDone}/{subs.length}</span>}
+                                    const renderRow = (entry: typeof task, idx: number, isClone: boolean) => {
+                                        const subs = entry.subtasks || [];
+                                        const subsDone = subs.filter(s => s.done).length;
+                                        const isOpen = expanded[entry.$id];
+                                        return (
+                                            <div key={entry.$id}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: idx > 0 ? `1px solid ${hasClones ? 'rgba(251,191,36,0.1)' : 'var(--g-04,rgba(255,255,255,0.04))'}` : 'none' }}>
+                                                    {subs.length > 0 ? (
+                                                        <button onClick={() => toggleExpand(entry.$id)} style={{ width: 20, height: 20, borderRadius: 4, border: 'none', cursor: 'pointer', background: 'var(--g-05,rgba(255,255,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                                                            <span className="material-icons-round" style={{ fontSize: 14, color: 'var(--t-888,#888)' }}>chevron_right</span>
+                                                        </button>
+                                                    ) : (
+                                                        <div style={{ width: 20, height: 20, flexShrink: 0 }} />
+                                                    )}
+                                                    <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleExpand(entry.$id)}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            {!hasClones && <span style={{ color: 'var(--t-555,#555)', fontSize: 12, fontFamily: 'Rajdhani' }}>{ti + 1}.</span>}
+                                                            <p style={{ fontFamily: 'Rajdhani', fontWeight: 600, fontSize: 14, color: 'var(--t-eee,#eee)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{entry.name}</p>
+                                                            {isClone && <span style={{ fontSize: 8, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', padding: '0 4px', borderRadius: 3, fontFamily: 'Rajdhani', fontWeight: 700 }}>COPY</span>}
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                                            {entry.slot != null && <span style={{ fontSize: 10, color: 'var(--t-555,#555)', display: 'flex', alignItems: 'center', gap: 3 }}><span className="material-icons-round" style={{ fontSize: 11 }}>schedule</span>{fmtSlot(entry.slot)}{entry.slotEnd != null && <> → {fmtSlot(entry.slotEnd)}</>}</span>}
+                                                            {entry.date && <span style={{ fontSize: 10, color: 'var(--t-555,#555)', display: 'flex', alignItems: 'center', gap: 3 }}><span className="material-icons-round" style={{ fontSize: 11 }}>event</span>{new Date(entry.date + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                                                            {subs.length > 0 && <span style={{ fontSize: 10, color: subsDone === subs.length ? '#4ade80' : 'var(--t-666,#666)', display: 'flex', alignItems: 'center', gap: 3 }}><span className="material-icons-round" style={{ fontSize: 11 }}>checklist</span>{subsDone}/{subs.length}</span>}
+                                                        </div>
                                                     </div>
+                                                    <button onClick={() => { if (!isOpen) toggleExpand(entry.$id); setTimeout(() => document.getElementById(`addSub_quest_${entry.$id}`)?.focus(), 50); }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-04,rgba(255,255,255,0.04))', border: `1px solid ${clr}30`, transition: 'all .3s' }}>
+                                                        <span className="material-icons-round" style={{ fontSize: 14, color: clr }}>add</span>
+                                                    </button>
+                                                    <button onClick={() => setModal({ type: 'editTask', pid: proj.$id, tid: entry.$id })} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03,rgba(255,255,255,0.03))', border: '1px solid var(--g-06,rgba(255,255,255,0.06))' }}>
+                                                        <span className="material-icons-round" style={{ fontSize: 13, color: 'var(--t-666,#666)' }}>edit</span>
+                                                    </button>
+                                                    <button onClick={async () => {
+                                                        if (profile?.confirmTaskDelete !== false) {
+                                                            setConfirmDelete({ type: 'task', id: entry.$id, name: entry.name });
+                                                        } else {
+                                                            await removeTask(entry.$id);
+                                                            showToast(isClone ? 'Slot copy deleted' : 'Quest deleted');
+                                                        }
+                                                    }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
+                                                        <span className="material-icons-round" style={{ fontSize: 14, color: '#f43f5e' }}>close</span>
+                                                    </button>
+                                                    <button onClick={() => {
+                                                        if (subs.length > 0 && !subs.every(s => s.done) && !entry.done) {
+                                                            showToast('Please complete all subtasks first!');
+                                                            return;
+                                                        }
+                                                        toggleTask(entry.$id);
+                                                    }} style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-04,rgba(255,255,255,0.04))', border: `2px solid ${clr}40`, transition: 'all .3s' }}>
+                                                    </button>
                                                 </div>
-                                                <button onClick={() => {
-                                                    if (!isOpen) toggleExpand(task.$id);
-                                                    setTimeout(() => document.getElementById(`addSub_quest_${task.$id}`)?.focus(), 50);
-                                                }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-04,rgba(255,255,255,0.04))', border: `1px solid ${clr}30`, transition: 'all .3s' }}>
-                                                    <span className="material-icons-round" style={{ fontSize: 14, color: clr }}>add</span>
-                                                </button>
-                                                <button onClick={() => setModal({ type: 'editTask', pid: proj.$id, tid: task.$id })} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03,rgba(255,255,255,0.03))', border: '1px solid var(--g-06,rgba(255,255,255,0.06))' }}>
-                                                    <span className="material-icons-round" style={{ fontSize: 13, color: 'var(--t-666,#666)' }}>edit</span>
-                                                </button>
-                                                <button onClick={async () => {
-                                                    if (profile?.confirmTaskDelete !== false) {
-                                                        setConfirmDelete({ type: 'task', id: task.$id, name: task.name });
-                                                    } else {
-                                                        await removeTask(task.$id);
-                                                        showToast('Quest deleted');
-                                                    }
-                                                }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
-                                                    <span className="material-icons-round" style={{ fontSize: 14, color: '#f43f5e' }}>close</span>
-                                                </button>
-                                                <button onClick={() => {
-                                                    if (subs.length > 0 && !subs.every(s => s.done) && !task.done) {
-                                                        showToast('Please complete all subtasks first!');
-                                                        return;
-                                                    }
-                                                    toggleTask(task.$id);
-                                                }} style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-04,rgba(255,255,255,0.04))', border: `2px solid ${clr}40`, transition: 'all .3s' }}>
-                                                </button>
-                                            </div>
 
-                                            {/* Subtasks */}
-                                            {isOpen && (
-                                                <div style={{ marginLeft: 30, paddingBottom: 6, borderLeft: `2px solid ${clr}20`, marginBottom: 4 }}>
-                                                    {subs.map(sub => (
-                                                        <div key={sub.$id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0 6px 12px', opacity: sub.done ? 0.5 : 1, transition: 'opacity .3s' }}>
-                                                            <p style={{ flex: 1, fontFamily: 'Rajdhani', fontWeight: 500, fontSize: 13, color: sub.done ? 'var(--t-555,#555)' : 'var(--t-bbb,#bbb)', textDecoration: sub.done ? 'line-through' : 'none', lineHeight: 1.3 }}>{sub.name}</p>
-                                                            <button onClick={async () => {
-                                                                if (profile?.confirmTaskDelete !== false) {
-                                                                    setConfirmDelete({ type: 'subtask', id: sub.$id, name: sub.name });
-                                                                } else {
-                                                                    await removeSubtask(sub.$id);
-                                                                    showToast('Subtask deleted');
-                                                                }
-                                                            }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
-                                                                <span className="material-icons-round" style={{ fontSize: 14, color: '#f43f5e' }}>close</span>
-                                                            </button>
-                                                            <button onClick={() => toggleSubtask(sub.$id)} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: sub.done ? `linear-gradient(135deg,${clr},${clr}cc)` : 'var(--g-03,rgba(255,255,255,0.03))', border: sub.done ? 'none' : `1.5px solid ${clr}30`, transition: 'all .3s', boxShadow: sub.done ? `0 0 8px ${clr}30` : 'none' }}>
-                                                                {sub.done && <span className="material-icons-round" style={{ fontSize: 14, color: '#fff' }}>check</span>}
+                                                {/* Subtasks */}
+                                                {isOpen && (
+                                                    <div style={{ marginLeft: 30, paddingBottom: 6, borderLeft: `2px solid ${clr}20`, marginBottom: 4 }}>
+                                                        {subs.map(sub => (
+                                                            <div key={sub.$id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0 6px 12px', opacity: sub.done ? 0.5 : 1, transition: 'opacity .15s' }}>
+                                                                {editingSub === sub.$id ? (
+                                                                    <input autoFocus value={editSubName} onChange={e => setEditSubName(e.target.value)}
+                                                                        onKeyDown={e => { if (e.key === 'Enter' && editSubName.trim()) { updateSubtaskField(sub.$id, 'name', editSubName.trim()); setEditingSub(null); showToast('Subtask updated'); } else if (e.key === 'Escape') setEditingSub(null); }}
+                                                                        onBlur={() => { if (editSubName.trim() && editSubName.trim() !== sub.name) { updateSubtaskField(sub.$id, 'name', editSubName.trim()); showToast('Subtask updated'); } setEditingSub(null); }}
+                                                                        style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb)', outline: 'none' }}
+                                                                    />
+                                                                ) : (
+                                                                    <p style={{ flex: 1, fontFamily: 'Rajdhani', fontWeight: 500, fontSize: 13, color: sub.done ? 'var(--t-555,#555)' : 'var(--t-bbb,#bbb)', textDecoration: sub.done ? 'line-through' : 'none', lineHeight: 1.3 }}>{sub.name}</p>
+                                                                )}
+                                                                <button onClick={() => { setEditingSub(sub.$id); setEditSubName(sub.name); }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03)', border: '1px solid var(--g-06)' }}>
+                                                                    <span className="material-icons-round" style={{ fontSize: 13, color: 'var(--t-666)' }}>edit</span>
+                                                                </button>
+                                                                <button onClick={async () => { if (profile?.confirmTaskDelete !== false) { setConfirmDelete({ type: 'subtask', id: sub.$id, name: sub.name }); } else { await removeSubtask(sub.$id); showToast('Subtask deleted'); } }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
+                                                                    <span className="material-icons-round" style={{ fontSize: 14, color: '#f43f5e' }}>close</span>
+                                                                </button>
+                                                                <button onClick={() => toggleSubtask(sub.$id)} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: sub.done ? `linear-gradient(135deg,${clr},${clr}cc)` : 'var(--g-03)', border: sub.done ? 'none' : `1.5px solid ${clr}30`, transition: 'all .15s', boxShadow: sub.done ? `0 0 8px ${clr}30` : 'none' }}>
+                                                                    {sub.done && <span className="material-icons-round" style={{ fontSize: 14, color: '#fff' }}>check</span>}
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0 4px 12px', marginTop: 2 }}>
+                                                            <input id={`addSub_quest_${entry.$id}`} placeholder="+ Add subtask..."
+                                                                onKeyDown={e => { const inp = e.target as HTMLInputElement; if (e.key === 'Enter' && inp.value.trim()) { addSubtask(entry.$id, inp.value.trim()); inp.value = ''; } }}
+                                                                style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 6, padding: '6px 10px', fontSize: 12, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb)', outline: 'none' }}
+                                                            />
+                                                            <button onClick={e => { const inp = (e.target as HTMLElement).closest('div')?.querySelector('input'); if (inp && inp.value.trim()) { addSubtask(entry.$id, inp.value.trim()); inp.value = ''; } }} style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${clr}30`, background: 'var(--g-03)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                                <span className="material-icons-round" style={{ fontSize: 14, color: clr }}>add</span>
                                                             </button>
                                                         </div>
-                                                    ))}
-                                                    {/* Inline add subtask */}
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0 4px 12px', marginTop: 2 }}>
-                                                        <input
-                                                            id={`addSub_quest_${task.$id}`}
-                                                            placeholder="+ Add subtask..."
-                                                            onKeyDown={e => {
-                                                                const inp = e.target as HTMLInputElement;
-                                                                if (e.key === 'Enter' && inp.value.trim()) {
-                                                                    addSubtask(task.$id, inp.value.trim());
-                                                                    inp.value = '';
-                                                                }
-                                                            }}
-                                                            style={{ flex: 1, background: 'var(--g-03,rgba(255,255,255,0.03))', border: '1px solid var(--g-06,rgba(255,255,255,0.06))', borderRadius: 6, padding: '6px 10px', fontSize: 12, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb,#bbb)', outline: 'none' }}
-                                                        />
-                                                        <button onClick={e => {
-                                                            const inp = (e.target as HTMLElement).closest('div')?.querySelector('input');
-                                                            if (inp && inp.value.trim()) { addSubtask(task.$id, inp.value.trim()); inp.value = ''; }
-                                                        }} style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${clr}30`, background: 'var(--g-03,rgba(255,255,255,0.03))', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                            <span className="material-icons-round" style={{ fontSize: 14, color: clr }}>add</span>
-                                                        </button>
                                                     </div>
+                                                )}
+                                            </div>
+                                        );
+                                    };
+
+                                    return (
+                                        <div key={task.$id} style={{ borderTop: ti > 0 ? '1px solid var(--g-04,rgba(255,255,255,0.04))' : 'none' }}>
+                                            {hasClones ? (
+                                                <div style={{ margin: '8px 0', padding: '8px 10px', borderRadius: 10, background: 'rgba(251,191,36,0.03)', border: '1px solid rgba(251,191,36,0.12)' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                                                        <span className="material-icons-round" style={{ fontSize: 12, color: '#fbbf24' }}>content_copy</span>
+                                                        <span style={{ fontSize: 9, fontFamily: 'Rajdhani', fontWeight: 700, color: '#fbbf24', letterSpacing: 1 }}>MULTI-SLOT × {group.length}</span>
+                                                    </div>
+                                                    {group.map((entry, gi) => renderRow(entry, gi, gi > 0))}
                                                 </div>
+                                            ) : (
+                                                renderRow(task, ti, false)
                                             )}
                                         </div>
                                     );
                                 })}
                             </div>
                         </div>
-                    </div>
+                    </div >
                 );
             })}
-        </div>
+        </div >
     );
 }
