@@ -63,7 +63,8 @@ export function middleware(request: NextRequest) {
         'Content-Security-Policy',
         [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",  // Next.js needs these
+            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",  // Next.js + SW needs these
+            "worker-src 'self'",  // Service Worker
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
@@ -90,7 +91,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        // Match all routes except static files and _next internals
-        '/((?!_next/static|_next/image|favicon.ico).*)',
+        // Match all routes except static files, _next internals, and service worker
+        '/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.json|icons/).*)',
     ],
 };

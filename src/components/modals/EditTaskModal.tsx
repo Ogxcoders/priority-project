@@ -2,9 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import CustomSelect from '@/components/CustomSelect';
+import { t } from '@/lib/terms';
+import { STATUS_OPTS } from '@/lib/constants';
+import type { TaskStatus } from '@/lib/types';
 
 export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid: string; returnTo?: any }) {
-    const { setModal, enrichedProjects, updateTaskField, toggleTask, removeTask, showToast, profile } = useData();
+    const { setModal, enrichedProjects, updateTaskField, toggleTask, removeTask, showToast, profile, toggleSubtask, updateSubtaskField, addSubtask, removeSubtask } = useData();
     const proj = enrichedProjects.find(p => p.$id === pid);
     const task = proj?.tasks.find(t => t.$id === tid);
 
@@ -14,9 +17,12 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
     const [slotEnd, setSlotEnd] = useState(task?.slotEnd != null ? String(task.slotEnd) : '');
     const [date, setDate] = useState(task?.date || '');
     const [projectId, setProjectId] = useState(pid);
+    const [status, setStatus] = useState<string>(task?.status || 'default');
     const [loading, setLoading] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [isDone, setIsDone] = useState(task?.done ?? false);
+    const [editingSub, setEditingSub] = useState<string | null>(null);
+    const [editSubName, setEditSubName] = useState('');
 
     useEffect(() => {
         if (task) {
@@ -26,13 +32,18 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
             setSlotEnd(task.slotEnd != null ? String(task.slotEnd) : '');
             setDate(task.date || '');
             setIsDone(task.done);
+            setStatus(task.status || 'default');
         }
     }, [task]);
 
     if (!task) return null;
 
+    const subs = task.subtasks || [];
+    const clr = proj?.color || 'var(--primary)';
     const isEdu = profile?.theme === 'eduplex';
     const ac = isEdu ? 'rgba(200,249,2,' : 'rgba(255,69,0,';
+    const gm = profile?.gameMode ?? true;
+    const fh = gm ? 'Orbitron' : 'Inter';
     const fmtH = (h: number) => `${h % 12 || 12}${h >= 12 ? ' PM' : ' AM'}`;
 
     const priorityOptions = [
@@ -45,6 +56,12 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
     const campaignOptions = enrichedProjects.map(p => ({
         value: p.$id,
         label: p.name,
+    }));
+
+    const statusOptions = STATUS_OPTS.map(s => ({
+        value: s.value,
+        label: s.label,
+        icon: s.value === 'done' ? 'check_circle' : s.value === 'processing' ? 'pending' : s.value === 'ignore' ? 'block' : 'radio_button_unchecked',
     }));
 
     const timeOptions = [
@@ -65,7 +82,7 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
     ] : [];
 
     const handleSave = async () => {
-        if (!name.trim()) { showToast('Quest name is required!'); return; }
+        if (!name.trim()) { showToast(`${t('task', gm)} name is required!`); return; }
         const slotVal = slot ? parseInt(slot) : null;
         const slotEndVal = slotEnd ? parseInt(slotEnd) : null;
         if (slotVal != null && slotEndVal != null && slotEndVal <= slotVal) {
@@ -79,17 +96,27 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
             await updateTaskField(tid, 'slot', slotVal);
             await updateTaskField(tid, 'slotEnd', slotVal != null ? slotEndVal : null);
             await updateTaskField(tid, 'date', date || null);
-            // Handle done toggle
-            if (isDone !== task.done) {
+            // Handle status change
+            if (status !== (task.status || 'default')) {
+                if (status === 'done') {
+                    if (!task.done) await toggleTask(tid);
+                    await updateTaskField(tid, 'status', 'done');
+                } else {
+                    if (task.done) await toggleTask(tid);
+                    await updateTaskField(tid, 'status', status);
+                }
+            }
+            // Handle done toggle (only if status didn't already handle it)
+            if (isDone !== task.done && status === (task.status || 'default')) {
                 await toggleTask(tid);
             }
             if (projectId !== pid) {
                 await updateTaskField(tid, 'projectId', projectId);
             }
-            showToast('Quest updated! ⚔️');
+            showToast(`${t('task', gm)} updated!`);
             setModal(returnTo || null);
         } catch {
-            showToast('Failed to update quest');
+            showToast(`Failed to update ${t('task', gm).toLowerCase()}`);
         } finally {
             setLoading(false);
         }
@@ -107,10 +134,10 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
         setLoading(true);
         try {
             await removeTask(tid);
-            showToast('Quest removed');
+            showToast(`${t('task', gm)} removed`);
             setModal(returnTo || null);
         } catch {
-            showToast('Failed to delete quest');
+            showToast(`Failed to delete ${t('task', gm).toLowerCase()}`);
         } finally {
             setLoading(false);
             setConfirmDelete(false);
@@ -141,22 +168,27 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
                     </div>
                 </div>
             )}
-            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '85dvh', overflowY: 'auto' }}>
                 <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--g-10)', margin: '0 auto 16px' }} />
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span className="material-icons-round" style={{ fontSize: 20, color: 'var(--primary)' }}>edit</span>
-                        <h2 style={{ fontFamily: 'Orbitron', fontSize: 14, fontWeight: 700, color: 'var(--t-fff)', letterSpacing: 2 }}>EDIT QUEST</h2>
+                        <h2 style={{ fontFamily: fh, fontSize: 14, fontWeight: 700, color: 'var(--t-fff)', letterSpacing: gm ? 2 : 0.5 }}>{gm ? 'EDIT QUEST' : 'EDIT TASK'}</h2>
                     </div>
-                    <button onClick={handleDelete} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.3)', color: '#f43f5e', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'Orbitron', letterSpacing: 1, transition: 'all .3s' }}>
+                    <button onClick={handleDelete} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.3)', color: '#f43f5e', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: fh, letterSpacing: 1, transition: 'all .3s' }}>
                         DELETE
                     </button>
                 </div>
 
                 {/* Done Checkbox */}
                 <div
-                    onClick={() => setIsDone(!isDone)}
+                    onClick={() => {
+                        const next = !isDone;
+                        setIsDone(next);
+                        if (next) setStatus('done');
+                        else if (status === 'done') setStatus('default');
+                    }}
                     style={{
                         display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 16,
                         borderRadius: 10, cursor: 'pointer', transition: 'all .3s',
@@ -179,18 +211,33 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
                             {isDone ? 'Completed' : 'Mark as Complete'}
                         </span>
                         <p style={{ fontSize: 10, color: 'var(--t-555)', margin: 0 }}>
-                            {isDone ? 'This quest is done!' : 'Check to mark quest as done'}
+                            {isDone ? `This ${t('task', gm).toLowerCase()} is done!` : `Check to mark ${t('task', gm).toLowerCase()} as done`}
                         </p>
                     </div>
                 </div>
 
+                {/* Status */}
                 <div style={{ marginBottom: 16 }}>
-                    <label className="input-label">Quest Name</label>
+                    <label className="input-label">Status</label>
+                    <CustomSelect
+                        value={status}
+                        options={statusOptions}
+                        onChange={v => {
+                            setStatus(v);
+                            if (v === 'done') setIsDone(true);
+                            else setIsDone(false);
+                        }}
+                        icon={status === 'done' ? 'check_circle' : status === 'processing' ? 'pending' : status === 'ignore' ? 'block' : 'radio_button_unchecked'}
+                    />
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                    <label className="input-label">{t('task', gm)} Name</label>
                     <input className="input-field" value={name} onChange={e => setName(e.target.value)} />
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                    <label className="input-label">Campaign</label>
+                    <label className="input-label">{t('project', gm)}</label>
                     <CustomSelect
                         value={projectId}
                         options={campaignOptions}
@@ -239,11 +286,93 @@ export default function EditTaskModal({ pid, tid, returnTo }: { pid: string; tid
                     <input className="input-field" type="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
 
+                {/* Subtasks */}
+                <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        <span className="material-icons-round" style={{ fontSize: 14, color: 'var(--t-666)' }}>checklist</span>
+                        <label className="input-label" style={{ margin: 0 }}>Subtasks ({subs.length})</label>
+                    </div>
+                    {subs.length > 0 && (
+                        <div style={{ borderRadius: 10, border: '1px solid var(--g-06)', overflow: 'hidden', marginBottom: 8 }}>
+                            {subs.map((sub: any, si: number) => (
+                                <div key={sub.$id} style={{
+                                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                                    borderTop: si > 0 ? '1px solid var(--g-04)' : 'none',
+                                    background: sub.done ? 'var(--g-02)' : 'transparent',
+                                    transition: 'background .15s',
+                                }}>
+                                    <button onClick={() => toggleSubtask(sub.$id)} style={{
+                                        width: 20, height: 20, borderRadius: 6, flexShrink: 0, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        background: sub.done ? `linear-gradient(135deg, ${clr}, ${clr}cc)` : 'transparent',
+                                        border: sub.done ? 'none' : `1.5px solid ${clr}40`,
+                                        transition: 'all .15s',
+                                        boxShadow: sub.done ? `0 0 6px ${clr}30` : 'none',
+                                    }}>
+                                        {sub.done && <span className="material-icons-round" style={{ fontSize: 13, color: '#fff' }}>check</span>}
+                                    </button>
+                                    {editingSub === sub.$id ? (
+                                        <input autoFocus value={editSubName} onChange={e => setEditSubName(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && editSubName.trim()) { updateSubtaskField(sub.$id, 'name', editSubName.trim()); setEditingSub(null); showToast('Subtask updated'); }
+                                                else if (e.key === 'Escape') setEditingSub(null);
+                                            }}
+                                            onBlur={() => { if (editSubName.trim() && editSubName.trim() !== sub.name) { updateSubtaskField(sub.$id, 'name', editSubName.trim()); showToast('Subtask updated'); } setEditingSub(null); }}
+                                            style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-08)', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb)', outline: 'none' }}
+                                        />
+                                    ) : (
+                                        <span onClick={() => { setEditingSub(sub.$id); setEditSubName(sub.name); }} style={{
+                                            flex: 1, fontSize: 13, fontFamily: 'Rajdhani', fontWeight: 500, cursor: 'pointer',
+                                            color: sub.done ? 'var(--t-555)' : 'var(--t-bbb)',
+                                            textDecoration: sub.done ? 'line-through' : 'none',
+                                        }}>{sub.name}</span>
+                                    )}
+                                    <button onClick={() => { setEditingSub(sub.$id); setEditSubName(sub.name); }} style={{
+                                        width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        background: 'var(--g-03)', border: '1px solid var(--g-06)',
+                                    }}>
+                                        <span className="material-icons-round" style={{ fontSize: 12, color: 'var(--t-666)' }}>edit</span>
+                                    </button>
+                                    <button onClick={() => { removeSubtask(sub.$id); showToast('Subtask deleted'); }} style={{
+                                        width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)',
+                                    }}>
+                                        <span className="material-icons-round" style={{ fontSize: 12, color: '#f43f5e' }}>close</span>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                            id="addSubEdit"
+                            placeholder="+ Add subtask..."
+                            onKeyDown={e => {
+                                const inp = e.target as HTMLInputElement;
+                                if (e.key === 'Enter' && inp.value.trim()) { addSubtask(tid, inp.value.trim()); inp.value = ''; showToast('Subtask added'); }
+                            }}
+                            style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb)', outline: 'none' }}
+                        />
+                        <button onClick={() => {
+                            const inp = document.getElementById('addSubEdit') as HTMLInputElement;
+                            if (inp && inp.value.trim()) { addSubtask(tid, inp.value.trim()); inp.value = ''; showToast('Subtask added'); }
+                        }} style={{
+                            width: 32, height: 32, borderRadius: 8, flexShrink: 0, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: `${clr}15`, border: `1px solid ${clr}30`,
+                        }}>
+                            <span className="material-icons-round" style={{ fontSize: 16, color: clr }}>add</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div style={{ display: 'flex', gap: 10 }}>
                     <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setModal(returnTo || null)}>Cancel</button>
                     <button className="btn-fire" style={{ flex: 2, opacity: loading ? 0.6 : 1 }} disabled={loading} onClick={handleSave}>
                         <span className="material-icons-round" style={{ fontSize: 14 }}>save</span>
-                        {loading ? 'Saving...' : 'Update Quest'}
+                        {loading ? 'Saving...' : `Update ${t('task', gm)}`}
                     </button>
                 </div>
             </div>

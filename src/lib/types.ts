@@ -20,6 +20,31 @@ export interface Profile {
     showLoot: boolean;
     startHour: number;
     endHour: number;
+
+    // === PHASE 1: GAME MODE ===
+    gameMode: boolean;
+
+    // === VIEW PREFERENCES (per page) ===
+    questView: 'card' | 'list' | 'sheet';
+    boardView: 'card' | 'grid' | 'sheet';
+    mapView: 'calendar' | 'timeline' | 'sheet';
+
+    // === FEATURE TOGGLES ===
+    showSubtasks: boolean;
+    showPriority: boolean;
+    showTimeBlocks: boolean;
+    showProgress: boolean;
+    showStats: boolean;
+    showStreak: boolean;
+    showXP: boolean;
+    showAchievements: boolean;
+
+    // === UI CUSTOMIZATION ===
+    accentColor: string;
+    cardStyle: 'glass' | 'flat' | 'outlined' | 'elevated';
+    fontSize: 'small' | 'medium' | 'large';
+    compactMode: boolean;
+    animationsEnabled: boolean;
 }
 
 /* ===== Project ===== */
@@ -33,6 +58,8 @@ export interface Project {
 }
 
 /* ===== Task ===== */
+export type TaskStatus = 'default' | 'processing' | 'done' | 'ignore';
+
 export interface Task {
     $id: string;
     userId: string;
@@ -40,6 +67,7 @@ export interface Task {
     name: string;
     priority: number;
     done: boolean;
+    status: TaskStatus | null;
     slot: number | null;
     slotEnd: number | null;
     date: string | null;

@@ -4,13 +4,26 @@ import { createPortal } from 'react-dom';
 import { useData } from '@/context/DataContext';
 import { toDS, DAY_NAMES } from '@/lib/utils';
 import { currSym, TASK_ICONS, TASK_COLORS } from '@/lib/constants';
+import { t as tt } from '@/lib/terms';
+import MapSheetView from '@/components/MapSheetView';
 
 export default function MapPage() {
     const { tasks, subtasks, enrichedProjects, profile, setModal, toggleTask, toggleSubtask, updateTaskField, addSubtask, removeTask, removeSubtask, updateSubtaskField, showToast } = useData();
     const [view, setView] = useState<'time' | 'cal'>('time');
+
+    /* ── Sheet View override ── */
+    if ((profile?.mapView ?? 'calendar') === 'sheet') {
+        return (
+            <div className="anim-entry">
+                <MapSheetView />
+            </div>
+        );
+    }
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [editingSub, setEditingSub] = useState<string | null>(null);
     const [editSubName, setEditSubName] = useState('');
+    const [editingTask, setEditingTask] = useState<string | null>(null);
+    const [editTaskName, setEditTaskName] = useState('');
     const [confirmDelete, setConfirmDelete] = useState<{ type: 'task' | 'subtask'; id: string; name: string } | null>(null);
     const toggleExpand = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
     const realToday = new Date();
@@ -21,6 +34,9 @@ export default function MapPage() {
     const ac = isEdu ? 'rgba(200,249,2,' : 'rgba(255,69,0,';
     const cs = currSym(profile?.currency || 'USD');
     const showLoot = profile?.showLoot ?? false;
+    const gm = profile?.gameMode ?? true;
+    const fh = gm ? 'Orbitron' : 'Inter';
+    const fb = gm ? 'Rajdhani' : 'Inter';
 
     const startH = profile?.startHour ?? 8;
     const endH = profile?.endHour ?? 19;
@@ -118,7 +134,7 @@ export default function MapPage() {
                     {/* Month Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <button style={btnArrow} onClick={() => { const d = new Date(selDate.getFullYear(), selDate.getMonth() - 1, 1); pickDate(d); }}><span className="material-icons-round" style={{ fontSize: 20 }}>chevron_left</span></button>
-                        <h2 style={{ fontFamily: 'Orbitron', fontSize: 14, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--t-fff)' }}>{weekMonth.month} {weekMonth.year}</h2>
+                        <h2 style={{ fontFamily: fh, fontSize: 14, fontWeight: 700, letterSpacing: gm ? 2 : 0.5, textTransform: 'uppercase', color: 'var(--t-fff)' }}>{weekMonth.month} {weekMonth.year}</h2>
                         <button style={btnArrow} onClick={() => { const d = new Date(selDate.getFullYear(), selDate.getMonth() + 1, 1); pickDate(d); }}><span className="material-icons-round" style={{ fontSize: 20 }}>chevron_right</span></button>
                     </div>
 
@@ -193,7 +209,7 @@ export default function MapPage() {
                                                         <button onClick={(e) => { e.stopPropagation(); setModal({ type: 'editTask', pid: t!.pId, tid: t!.$id }); }} style={{ width: 24, height: 24, borderRadius: '50%', background: `${ac}0.1)`, border: `1px solid ${ac}0.2)`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                             <span className="material-icons-round" style={{ fontSize: 12, color: 'var(--primary)' }}>edit</span>
                                                         </button>
-                                                        <button onClick={(e) => { e.stopPropagation(); if (profile?.confirmTaskDelete !== false) { setConfirmDelete({ type: 'task', id: t!.$id, name: t!.name }); } else { removeTask(t!.$id); showToast('Quest deleted'); } }} style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <button onClick={(e) => { e.stopPropagation(); if (profile?.confirmTaskDelete !== false) { setConfirmDelete({ type: 'task', id: t!.$id, name: t!.name }); } else { removeTask(t!.$id); showToast(gm ? 'Quest deleted' : 'Task deleted'); } }} style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                             <span className="material-icons-round" style={{ fontSize: 12, color: '#f43f5e' }}>close</span>
                                                         </button>
                                                         <button onClick={(e) => { e.stopPropagation(); if (taskSubs.length > 0 && !taskSubs.every(s => s.done) && !t!.done) { showToast('Complete all subtasks first!'); return; } toggleTask(t!.$id); }} style={{ width: 28, height: 28, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t!.done ? `linear-gradient(135deg, var(--primary), var(--primary))` : `${ac}0.08)`, border: t!.done ? 'none' : `2px solid ${ac}0.3)`, transition: 'all .3s', boxShadow: t!.done ? `0 0 10px ${ac}0.5)` : 'none' }}>
@@ -204,7 +220,7 @@ export default function MapPage() {
                                                         {/* Badge row */}
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                                                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, background: `${ac}0.15)`, color: 'var(--t-ffcba4)', border: `1px solid ${ac}0.3)` }}>
-                                                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--primary)', animation: isEdu ? 'none' : 'borderPulse 2s infinite' }} />Active Quest
+                                                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--primary)', animation: isEdu || !gm ? 'none' : 'borderPulse 2s infinite' }} />{tt('active_quest', gm)}
                                                             </div>
                                                             {blockDuration > 0 && (
                                                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: `${ac}0.1)`, border: `1px solid ${ac}0.2)`, color: 'var(--primary)' }}>
@@ -216,7 +232,18 @@ export default function MapPage() {
 
                                                         {/* Task name */}
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                                            <h3 style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 18, color: t!.done ? 'var(--t-555)' : 'var(--t-fff)', textDecoration: t!.done ? 'line-through' : 'none', margin: 0 }}>{t!.name}</h3>
+                                                            {editingTask === t!.$id ? (
+                                                                <input autoFocus value={editTaskName} onClick={e => e.stopPropagation()}
+                                                                    onChange={e => setEditTaskName(e.target.value)}
+                                                                    onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter' && editTaskName.trim()) { updateTaskField(t!.$id, 'name', editTaskName.trim()); setEditingTask(null); showToast('Task updated'); } else if (e.key === 'Escape') setEditingTask(null); }}
+                                                                    onBlur={() => { if (editTaskName.trim() && editTaskName.trim() !== t!.name) { updateTaskField(t!.$id, 'name', editTaskName.trim()); showToast('Task updated'); } setEditingTask(null); }}
+                                                                    style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 6, padding: '4px 8px', fontSize: 18, fontFamily: 'Rajdhani', fontWeight: 700, color: 'var(--t-fff)', outline: 'none' }}
+                                                                />
+                                                            ) : (
+                                                                <h3 className="task-name" style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 18, color: t!.done ? 'var(--t-555)' : 'var(--t-fff)', textDecoration: t!.done ? 'line-through' : 'none', margin: 0 }}
+                                                                    onDoubleClick={e => { e.stopPropagation(); setEditingTask(t!.$id); setEditTaskName(t!.name); }}
+                                                                >{t!.name}</h3>
+                                                            )}
                                                             {t!.clonedFrom && (
                                                                 <span style={{ fontSize: 8, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', padding: '1px 5px', borderRadius: 4, fontFamily: 'Rajdhani', fontWeight: 700, letterSpacing: 1, whiteSpace: 'nowrap' }}>MULTI-SLOT</span>
                                                             )}
@@ -263,7 +290,7 @@ export default function MapPage() {
                                                                                     style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 6, padding: '4px 8px', fontSize: 12, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb)', outline: 'none' }}
                                                                                 />
                                                                             ) : (
-                                                                                <span style={{ flex: 1, fontSize: 11, fontFamily: 'Rajdhani', fontWeight: 500, color: sub.done ? 'var(--t-555)' : 'var(--t-bbb)', textDecoration: sub.done ? 'line-through' : 'none', lineHeight: 1.3 }}>{sub.name}</span>
+                                                                                <span className="task-name" style={{ flex: 1, fontSize: 11, fontFamily: 'Rajdhani', fontWeight: 500, color: sub.done ? 'var(--t-555)' : 'var(--t-bbb)', textDecoration: sub.done ? 'line-through' : 'none', lineHeight: 1.4 }}>{sub.name}</span>
                                                                             )}
                                                                             <button onClick={(e) => { e.stopPropagation(); setEditingSub(sub.$id); setEditSubName(sub.name); }} style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03)', border: '1px solid var(--g-06)' }}>
                                                                                 <span className="material-icons-round" style={{ fontSize: 11, color: 'var(--t-666)' }}>edit</span>
@@ -322,7 +349,7 @@ export default function MapPage() {
                     {/* Calendar Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                         <button style={btnArrow} onClick={() => { const d = new Date(calYear, calMon - 1, 1); pickDate(d); }}><span className="material-icons-round">chevron_left</span></button>
-                        <h2 style={{ fontFamily: 'Orbitron', fontSize: 16, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase' }}>{calMonth.toLocaleString('default', { month: 'long' })} {calYear}</h2>
+                        <h2 style={{ fontFamily: fh, fontSize: 16, fontWeight: 700, letterSpacing: gm ? 2 : 0.5, textTransform: 'uppercase' }}>{calMonth.toLocaleString('default', { month: 'long' })} {calYear}</h2>
                         <button style={btnArrow} onClick={() => { const d = new Date(calYear, calMon + 1, 1); pickDate(d); }}><span className="material-icons-round">chevron_right</span></button>
                     </div>
 
@@ -368,10 +395,10 @@ export default function MapPage() {
                             {/* Header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                 <h3 style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 18, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t-fff)' }}>
-                                    Quest Briefing <span style={{ color: 'var(--primary)', fontSize: 12, marginLeft: 6 }}>// {selDate.getDate()} {selDate.toLocaleString('default', { month: 'short' })}</span>
+                                    {tt('quest_briefing', gm)} <span style={{ color: 'var(--primary)', fontSize: 12, marginLeft: 6 }}>// {selDate.getDate()} {selDate.toLocaleString('default', { month: 'short' })}</span>
                                 </h3>
-                                <div style={{ padding: '3px 8px', borderRadius: 6, background: 'var(--b-40)', border: '1px solid var(--g-08)', fontSize: 9, color: 'var(--t-888)', fontFamily: 'Rajdhani', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
-                                    {dateAllTasks.length} Quest{dateAllTasks.length !== 1 ? 's' : ''}
+                                <div style={{ padding: '3px 8px', borderRadius: 6, background: 'var(--b-40)', border: '1px solid var(--g-08)', fontSize: 9, color: 'var(--t-888)', fontFamily: fb, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                    {dateAllTasks.length} {tt('task', gm)}{dateAllTasks.length !== 1 ? 's' : ''}
                                 </div>
                             </div>
 
@@ -389,7 +416,18 @@ export default function MapPage() {
                                                     <span className="material-icons-round" style={{ color: clr, fontSize: 20 }}>{icon}</span>
                                                 </div>
                                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <h4 style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 14, color: t.done ? 'var(--t-555)' : 'var(--t-fff)', textDecoration: t.done ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</h4>
+                                                    {editingTask === t.$id ? (
+                                                        <input autoFocus value={editTaskName} onClick={e => e.stopPropagation()}
+                                                            onChange={e => setEditTaskName(e.target.value)}
+                                                            onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter' && editTaskName.trim()) { updateTaskField(t.$id, 'name', editTaskName.trim()); setEditingTask(null); showToast('Task updated'); } else if (e.key === 'Escape') setEditingTask(null); }}
+                                                            onBlur={() => { if (editTaskName.trim() && editTaskName.trim() !== t.name) { updateTaskField(t.$id, 'name', editTaskName.trim()); showToast('Task updated'); } setEditingTask(null); }}
+                                                            style={{ width: '100%', background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 6, padding: '4px 8px', fontSize: 14, fontFamily: 'Rajdhani', fontWeight: 700, color: 'var(--t-fff)', outline: 'none' }}
+                                                        />
+                                                    ) : (
+                                                        <h4 className="task-name" style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 14, color: t.done ? 'var(--t-555)' : 'var(--t-fff)', textDecoration: t.done ? 'line-through' : 'none' }}
+                                                            onDoubleClick={e => { e.stopPropagation(); setEditingTask(t.$id); setEditTaskName(t.name); }}
+                                                        >{t.name}</h4>
+                                                    )}
                                                     <p style={{ fontSize: 10, color: 'var(--t-666)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         {t.pName}
                                                         {t.slot != null ? ` • ${fmtH(t.slot)}` : ''}
@@ -404,7 +442,7 @@ export default function MapPage() {
                                                 {showLoot && (
                                                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                                         <div className="text-gold" style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: 16, lineHeight: 1 }}>+{cs}{t.pMoney.toLocaleString()}</div>
-                                                        <div style={{ fontSize: 8, color: 'var(--t-555)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginTop: 2 }}>Reward</div>
+                                                        <div style={{ fontSize: 8, color: 'var(--t-555)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginTop: 2 }}>{gm ? 'Reward' : 'Budget'}</div>
                                                     </div>
                                                 )}
                                             </div>
@@ -412,16 +450,30 @@ export default function MapPage() {
                                             {taskSubs.length > 0 && (
                                                 <div style={{ padding: '0 10px 10px 62px', display: 'flex', flexDirection: 'column', gap: 2 }}>
                                                     {taskSubs.map(sub => (
-                                                        <div key={sub.$id} onClick={() => toggleSubtask(sub.$id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px', borderRadius: 4, cursor: 'pointer', transition: 'all .15s' }}>
-                                                            <div style={{
-                                                                width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+                                                        <div key={sub.$id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px', borderRadius: 4, transition: 'all .15s' }}>
+                                                            <div onClick={() => toggleSubtask(sub.$id)} style={{
+                                                                width: 12, height: 12, borderRadius: 3, flexShrink: 0, cursor: 'pointer',
                                                                 background: sub.done ? clr : 'var(--g-05)',
                                                                 border: sub.done ? 'none' : `1px solid ${clr}40`,
                                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             }}>
                                                                 {sub.done && <span className="material-icons-round" style={{ fontSize: 9, color: '#fff' }}>check</span>}
                                                             </div>
-                                                            <span style={{ fontSize: 10, fontFamily: 'Rajdhani', fontWeight: 500, color: sub.done ? 'var(--t-555)' : 'var(--t-999)', textDecoration: sub.done ? 'line-through' : 'none' }}>{sub.name}</span>
+                                                            {editingSub === sub.$id ? (
+                                                                <input autoFocus value={editSubName} onClick={e => e.stopPropagation()}
+                                                                    onChange={e => setEditSubName(e.target.value)}
+                                                                    onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter' && editSubName.trim()) { updateSubtaskField(sub.$id, 'name', editSubName.trim()); setEditingSub(null); showToast('Subtask updated'); } else if (e.key === 'Escape') setEditingSub(null); }}
+                                                                    onBlur={() => { if (editSubName.trim() && editSubName.trim() !== sub.name) { updateSubtaskField(sub.$id, 'name', editSubName.trim()); showToast('Subtask updated'); } setEditingSub(null); }}
+                                                                    style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb)', outline: 'none' }}
+                                                                />
+                                                            ) : (
+                                                                <span className="task-name" style={{ flex: 1, fontSize: 10, fontFamily: 'Rajdhani', fontWeight: 500, color: sub.done ? 'var(--t-555)' : 'var(--t-999)', textDecoration: sub.done ? 'line-through' : 'none', cursor: 'pointer' }}
+                                                                    onDoubleClick={e => { e.stopPropagation(); setEditingSub(sub.$id); setEditSubName(sub.name); }}
+                                                                >{sub.name}</span>
+                                                            )}
+                                                            <button onClick={e => { e.stopPropagation(); setEditingSub(sub.$id); setEditSubName(sub.name); }} style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03)', border: '1px solid var(--g-06)' }}>
+                                                                <span className="material-icons-round" style={{ fontSize: 10, color: 'var(--t-666)' }}>edit</span>
+                                                            </button>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -431,10 +483,10 @@ export default function MapPage() {
                                 }) : (
                                     <div style={{ textAlign: 'center', padding: 20 }}>
                                         <span className="material-icons-round" style={{ fontSize: 32, color: 'var(--t-333)', marginBottom: 8 }}>event_available</span>
-                                        <p style={{ fontSize: 12, color: 'var(--t-555)', fontFamily: 'Rajdhani', fontWeight: 600 }}>No quests scheduled for {isSelToday ? 'today' : selDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                                        <p style={{ fontSize: 12, color: 'var(--t-555)', fontFamily: fb, fontWeight: 600 }}>No {tt('tasks', gm).toLowerCase()} scheduled for {isSelToday ? 'today' : selDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
                                         <button onClick={() => setModal({ type: 'assignTask', preDate: selDateStr })} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 10, border: `1px solid ${ac}0.3)`, background: `${ac}0.1)`, color: 'var(--primary)', fontSize: 12, fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: 1, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all .2s' }}>
                                             <span className="material-icons-round" style={{ fontSize: 16 }}>add_task</span>
-                                            Add Quest
+                                            {gm ? 'Add Quest' : 'Add Task'}
                                         </button>
                                     </div>
                                 )}
@@ -452,14 +504,14 @@ export default function MapPage() {
                                 <span className="material-icons-round" style={{ fontSize: 18, color: '#f43f5e' }}>warning</span>
                             </div>
                             <div>
-                                <h3>Delete {confirmDelete.type === 'task' ? 'Quest' : 'Subtask'}?</h3>
+                                <h3>Delete {confirmDelete.type === 'task' ? tt('task', gm) : 'Subtask'}?</h3>
                                 <p className="confirm-sub">This cannot be undone</p>
                             </div>
                         </div>
                         <p className="confirm-name">&ldquo;{confirmDelete.name}&rdquo;</p>
                         <div style={{ display: 'flex', gap: 10 }}>
                             <button className="confirm-cancel" onClick={() => setConfirmDelete(null)}>Cancel</button>
-                            <button className="confirm-delete" onClick={async () => { if (confirmDelete.type === 'task') { await removeTask(confirmDelete.id); showToast('Quest deleted'); } else { await removeSubtask(confirmDelete.id); showToast('Subtask deleted'); } setConfirmDelete(null); }}>
+                            <button className="confirm-delete" onClick={async () => { if (confirmDelete.type === 'task') { await removeTask(confirmDelete.id); showToast(gm ? 'Quest deleted' : 'Task deleted'); } else { await removeSubtask(confirmDelete.id); showToast('Subtask deleted'); } setConfirmDelete(null); }}>
                                 <span className="material-icons-round" style={{ fontSize: 14 }}>delete</span>
                                 Delete
                             </button>

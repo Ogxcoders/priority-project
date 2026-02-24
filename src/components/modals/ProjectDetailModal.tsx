@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import { currSym, PCOLS } from '@/lib/constants';
+import { t } from '@/lib/terms';
 
 export default function ProjectDetailModal({ pid }: { pid: string }) {
     const { setModal, enrichedProjects, updateProjectField, removeProject, showToast, profile, toggleTask, toggleSubtask, updateSubtaskField, addSubtask, removeTask, removeSubtask, addTask } = useData();
@@ -10,6 +11,8 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
     const isEdu = profile?.theme === 'eduplex';
     const ac = isEdu ? 'rgba(200,249,2,' : 'rgba(255,69,0,';
     const showLoot = profile?.showLoot ?? false;
+    const gm = profile?.gameMode ?? true;
+    const fh = gm ? 'Orbitron' : 'Inter';
 
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState(proj?.name || '');
@@ -27,31 +30,31 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
     const clr = proj.color || '#FF4500';
 
     const handleSave = async () => {
-        if (!name.trim()) { showToast('Campaign name is required!'); return; }
+        if (!name.trim()) { showToast(`${t('project', gm)} name is required!`); return; }
         setLoading(true);
         try {
             await updateProjectField(pid, 'name', name.trim());
             await updateProjectField(pid, 'money', parseInt(money) || 0);
             await updateProjectField(pid, 'priority', parseInt(priority) || 1);
             await updateProjectField(pid, 'color', color);
-            showToast('Campaign updated!');
+            showToast(`${t('project', gm)} updated!`);
             setEditing(false);
         } catch {
-            showToast('Failed to update campaign');
+            showToast(`Failed to update ${t('project', gm).toLowerCase()}`);
         } finally {
             setLoading(false);
         }
     };
 
     const handleDeleteProject = async () => {
-        if (!window.confirm("Are you sure you want to delete this Campaign? This will delete all its quests as well.")) return;
+        if (!window.confirm(`Are you sure you want to delete this ${t('project', gm)}? This will delete all its ${t('tasks', gm).toLowerCase()} as well.`)) return;
         setLoading(true);
         try {
             await removeProject(pid);
-            showToast('Campaign removed');
+            showToast(`${t('project', gm)} removed`);
             setModal(null);
         } catch {
-            showToast('Failed to delete campaign');
+            showToast(`Failed to delete ${t('project', gm).toLowerCase()}`);
         } finally {
             setLoading(false);
         }
@@ -114,8 +117,8 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
                         <div style={{ display: 'grid', gridTemplateColumns: showLoot ? 'repeat(3,1fr)' : 'repeat(2,1fr)', gap: 8, marginBottom: 16 }}>
                             {showLoot && (
                                 <div className="glass-panel" style={{ borderRadius: 10, padding: 10, textAlign: 'center' }}>
-                                    <p className="text-gold" style={{ fontFamily: 'Orbitron', fontWeight: 700, fontSize: 16 }}>{cs}{proj.money.toLocaleString()}</p>
-                                    <p style={{ fontSize: 9, color: 'var(--t-555)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>Bounty</p>
+                                    <p className="text-gold" style={{ fontFamily: fh, fontWeight: 700, fontSize: 16 }}>{cs}{proj.money.toLocaleString()}</p>
+                                    <p style={{ fontSize: 9, color: 'var(--t-555)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>{gm ? 'Bounty' : 'Budget'}</p>
                                 </div>
                             )}
                             <div className="glass-panel" style={{ borderRadius: 10, padding: 10, textAlign: 'center' }}>
@@ -190,8 +193,8 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
                                             const subsDone = subs.filter(s => s.done).length;
                                             const isOpen = expanded[entry.$id];
                                             return (
-                                                <div key={entry.$id}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: idx > 0 ? `1px solid ${hasClones ? 'rgba(251,191,36,0.1)' : 'var(--g-04)'}` : 'none' }}>
+                                                <div key={entry.$id} className={`task-row ${isOpen ? 'expanded' : ''}`}>
+                                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 4px', borderTop: idx > 0 ? `1px solid ${hasClones ? 'rgba(251,191,36,0.1)' : 'var(--g-04)'}` : 'none' }}>
                                                         {subs.length > 0 ? (
                                                             <button onClick={() => toggleExpand(entry.$id)} style={{ width: 20, height: 20, borderRadius: 4, border: 'none', cursor: 'pointer', background: 'var(--g-05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
                                                                 <span className="material-icons-round" style={{ fontSize: 14, color: 'var(--t-888)' }}>chevron_right</span>
@@ -202,7 +205,7 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
                                                         <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleExpand(entry.$id)}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                                 {!hasClones && <span style={{ color: 'var(--t-555)', fontSize: 12, fontFamily: 'Rajdhani' }}>{ti + 1}.</span>}
-                                                                <p style={{ fontFamily: 'Rajdhani', fontWeight: 600, fontSize: 14, color: entry.done ? 'var(--t-555)' : 'var(--t-eee)', textDecoration: entry.done ? 'line-through' : 'none', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{entry.name}</p>
+                                                                <p className="task-name" style={{ fontFamily: 'Rajdhani', fontWeight: 600, fontSize: 14, color: entry.done ? 'var(--t-555)' : 'var(--t-eee)', textDecoration: entry.done ? 'line-through' : 'none', lineHeight: 1.4, margin: 0 }}>{entry.name}</p>
                                                                 {isClone && <span style={{ fontSize: 8, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', padding: '0 4px', borderRadius: 3, fontFamily: 'Rajdhani', fontWeight: 700 }}>COPY</span>}
                                                             </div>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
@@ -211,15 +214,17 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
                                                                 {subs.length > 0 && <span style={{ fontSize: 10, color: subsDone === subs.length ? '#4ade80' : 'var(--t-666)', display: 'flex', alignItems: 'center', gap: 3 }}><span className="material-icons-round" style={{ fontSize: 11 }}>checklist</span>{subsDone}/{subs.length}</span>}
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => { if (!isOpen) toggleExpand(entry.$id); setTimeout(() => document.getElementById(`addSub_${entry.$id}`)?.focus(), 50); }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-04)', border: `1px solid ${proj.color || 'var(--primary)'}30` }}>
-                                                            <span className="material-icons-round" style={{ fontSize: 14, color: proj.color || 'var(--primary)' }}>add</span>
-                                                        </button>
-                                                        <button onClick={() => setModal({ type: 'editTask', pid, tid: entry.$id, returnTo: { type: 'projectDetail', pid } })} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03)', border: '1px solid var(--g-06)' }}>
-                                                            <span className="material-icons-round" style={{ fontSize: 13, color: 'var(--t-666)' }}>edit</span>
-                                                        </button>
-                                                        <button onClick={async () => { if (profile?.confirmTaskDelete !== false) { setConfirmDelete({ type: 'task', id: entry.$id, name: entry.name }); } else { await removeTask(entry.$id); showToast(isClone ? 'Slot copy deleted' : 'Quest deleted'); } }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
-                                                            <span className="material-icons-round" style={{ fontSize: 14, color: '#f43f5e' }}>close</span>
-                                                        </button>
+                                                        <div className="task-actions">
+                                                            <button onClick={() => { if (!isOpen) toggleExpand(entry.$id); setTimeout(() => document.getElementById(`addSub_${entry.$id}`)?.focus(), 50); }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-04)', border: `1px solid ${proj.color || 'var(--primary)'}30` }}>
+                                                                <span className="material-icons-round" style={{ fontSize: 14, color: proj.color || 'var(--primary)' }}>add</span>
+                                                            </button>
+                                                            <button onClick={() => setModal({ type: 'editTask', pid, tid: entry.$id, returnTo: { type: 'projectDetail', pid } })} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03)', border: '1px solid var(--g-06)' }}>
+                                                                <span className="material-icons-round" style={{ fontSize: 13, color: 'var(--t-666)' }}>edit</span>
+                                                            </button>
+                                                            <button onClick={async () => { if (profile?.confirmTaskDelete !== false) { setConfirmDelete({ type: 'task', id: entry.$id, name: entry.name }); } else { await removeTask(entry.$id); showToast(isClone ? 'Slot copy deleted' : 'Quest deleted'); } }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)' }}>
+                                                                <span className="material-icons-round" style={{ fontSize: 14, color: '#f43f5e' }}>close</span>
+                                                            </button>
+                                                        </div>
                                                         <button onClick={() => { if (subs.length > 0 && !subs.every(s => s.done) && !entry.done) { showToast('Complete all subtasks first!'); return; } toggleTask(entry.$id); }} style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: entry.done ? `linear-gradient(135deg, ${proj.color || 'var(--primary)'}, ${proj.color || 'var(--primary)'}cc)` : 'var(--g-04)', border: entry.done ? 'none' : `2px solid ${proj.color || 'var(--primary)'}40`, transition: 'all .3s', boxShadow: entry.done ? `0 0 10px ${proj.color || 'var(--primary)'}40` : 'none' }}>
                                                             {entry.done && <span className="material-icons-round" style={{ fontSize: 16, color: '#fff' }}>check</span>}
                                                         </button>
@@ -235,7 +240,7 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
                                                                             style={{ flex: 1, background: 'var(--g-03)', border: '1px solid var(--g-06)', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'Rajdhani', fontWeight: 500, color: 'var(--t-bbb)', outline: 'none' }}
                                                                         />
                                                                     ) : (
-                                                                        <p style={{ flex: 1, fontFamily: 'Rajdhani', fontWeight: 500, fontSize: 13, color: sub.done ? 'var(--t-555)' : 'var(--t-bbb)', textDecoration: sub.done ? 'line-through' : 'none', lineHeight: 1.3 }}>{sub.name}</p>
+                                                                        <p className="task-name" style={{ flex: 1, fontFamily: 'Rajdhani', fontWeight: 500, fontSize: 13, color: sub.done ? 'var(--t-555)' : 'var(--t-bbb)', textDecoration: sub.done ? 'line-through' : 'none', lineHeight: 1.4 }}>{sub.name}</p>
                                                                     )}
                                                                     <button onClick={() => { setEditingSub(sub.$id); setEditSubName(sub.name); }} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--g-03)', border: '1px solid var(--g-06)' }}>
                                                                         <span className="material-icons-round" style={{ fontSize: 13, color: 'var(--t-666)' }}>edit</span>
@@ -315,7 +320,7 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
                         <div style={{ display: 'flex', gap: 10 }}>
                             <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setModal(null)}>Close</button>
                             <button style={{ flex: 1, padding: '10px 16px', borderRadius: 10, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', color: '#f43f5e', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 1, textTransform: 'uppercase' }} onClick={() => setConfirmDelete({ type: 'project', id: pid, name: proj.name })}>
-                                Delete Campaign
+                                {t('delete_proj', gm)}
                             </button>
                         </div>
                     </>
@@ -324,18 +329,18 @@ export default function ProjectDetailModal({ pid }: { pid: string }) {
                         {/* Edit Mode */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
                             <span className="material-icons-round" style={{ fontSize: 20, color: '#fbbf24' }}>edit</span>
-                            <h2 style={{ fontFamily: 'Orbitron', fontSize: 14, fontWeight: 700, color: 'var(--t-fff)', letterSpacing: 2 }}>EDIT CAMPAIGN</h2>
+                            <h2 style={{ fontFamily: fh, fontSize: 14, fontWeight: 700, color: 'var(--t-fff)', letterSpacing: gm ? 2 : 0.5 }}>{gm ? 'EDIT CAMPAIGN' : 'EDIT PROJECT'}</h2>
                         </div>
 
                         <div style={{ marginBottom: 16 }}>
-                            <label className="input-label">Campaign Name</label>
+                            <label className="input-label">{t('project', gm)} Name</label>
                             <input className="input-field" value={name} onChange={e => setName(e.target.value)} />
                         </div>
 
                         <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                             {showLoot && (
                                 <div style={{ flex: 1 }}>
-                                    <label className="input-label">Bounty Value</label>
+                                    <label className="input-label">{gm ? 'Bounty Value' : 'Budget'}</label>
                                     <input className="input-field" type="number" value={money} onChange={e => setMoney(e.target.value)} />
                                 </div>
                             )}

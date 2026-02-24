@@ -1,0 +1,1381 @@
+/* ═══════════════════════════════════════════════════════════
+   SheetView — TanStack Table · Notion-like · shadcn-inspired
+   Clean, minimal, professional data table.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Root Container ─────────────────────────────────────── */
+.sv-root {
+    position: relative;
+    width: fit-content;
+    font-family: inherit;
+    background: var(--card-gradient);
+    border: 1px solid var(--g-06);
+    border-radius: 0;
+}
+
+/* ── Toolbar ────────────────────────────────────────────── */
+.sv-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--g-06);
+    gap: 12px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.sv-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.sv-toolbar-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--g-05);
+    border: 1px solid var(--g-06);
+    flex-shrink: 0;
+}
+
+.sv-toolbar-icon .material-icons-round {
+    font-size: 16px;
+    color: var(--primary);
+}
+
+.sv-toolbar-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--t-fff);
+    letter-spacing: 0.5px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.sv-toolbar-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: var(--g-05);
+    color: var(--t-bbb);
+    border: 1px solid var(--g-06);
+    flex-shrink: 0;
+}
+
+.sv-toolbar-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ── Buttons ────────────────────────────────────────────── */
+.sv-btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px dashed var(--g-08);
+    background: transparent;
+    color: var(--t-bbb);
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+}
+
+.sv-btn-add:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(var(--primary-rgb, 255, 69, 0), 0.06);
+}
+
+.sv-btn-add .material-icons-round {
+    font-size: 16px;
+}
+
+.sv-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid var(--g-06);
+    background: var(--g-03);
+    color: var(--t-bbb);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+}
+
+.sv-chip:hover {
+    background: var(--g-06);
+    color: var(--t-fff);
+}
+
+.sv-chip .material-icons-round {
+    font-size: 12px;
+}
+
+/* ── Filter Bar ─────────────────────────────────────────── */
+.sv-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--g-04);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.sv-filters-icon {
+    font-size: 14px;
+    color: var(--t-bbb);
+}
+
+.sv-filter-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.sv-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--g-06);
+    background: var(--g-03);
+    color: var(--t-bbb);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+}
+
+.sv-filter-btn:hover {
+    background: var(--g-06);
+    color: var(--t-fff);
+}
+
+.sv-filter-btn.active {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.sv-filter-btn .material-icons-round {
+    font-size: 12px;
+}
+
+.sv-filter-arrow {
+    transition: transform .2s;
+}
+
+.sv-filter-btn.active .sv-filter-arrow {
+    transform: rotate(180deg);
+}
+
+.sv-filter-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 160px;
+    max-height: 240px;
+    overflow-y: auto;
+    border-radius: 10px;
+    z-index: 100;
+    background: var(--surface);
+    border: 1px solid var(--g-08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    animation: svPop .15s ease;
+}
+
+.sv-filter-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--t-bbb);
+    cursor: pointer;
+    transition: background .1s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.sv-filter-opt:hover {
+    background: var(--g-05);
+    color: var(--t-fff);
+}
+
+.sv-filter-opt.active {
+    color: var(--primary);
+    background: var(--g-04);
+}
+
+.sv-filter-opt .material-icons-round {
+    font-size: 14px;
+}
+
+.sv-filter-div {
+    height: 1px;
+    background: var(--g-06);
+    margin: 2px 0;
+}
+
+/* ── Table Container ────────────────────────────────────── */
+.sv-table-wrap {
+    -webkit-overflow-scrolling: touch;
+}
+
+.sv-table-wrap::-webkit-scrollbar {
+    height: 6px;
+}
+
+.sv-table-wrap::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sv-table-wrap::-webkit-scrollbar-thumb {
+    background: var(--g-08);
+    border-radius: 3px;
+}
+
+.sv-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+/* ── Table Header ───────────────────────────────────────── */
+.sv-th {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--t-bbb);
+    background: var(--g-02);
+    border-bottom: 1px solid var(--g-06);
+    border-right: 1px solid var(--g-03);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    user-select: none;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+}
+
+.sv-th:last-child {
+    border-right: none;
+}
+
+.sv-th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sv-th-check {
+    width: 40px;
+    max-width: 40px;
+    overflow: visible;
+    text-align: center;
+}
+
+.sv-th-expand {
+    width: 32px;
+    max-width: 32px;
+    overflow: visible;
+}
+
+.sv-th-actions {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+    overflow: visible;
+    text-align: center;
+    font-size: 10px;
+    background: var(--g-02);
+    border-left: 1px solid var(--g-06);
+}
+
+.sv-th-sortable {
+    cursor: pointer;
+}
+
+.sv-th-sortable:hover {
+    background: var(--g-05);
+    color: var(--t-eee);
+}
+
+.sv-th-sorted {
+    color: var(--primary);
+    background: var(--g-04);
+}
+
+.sv-th-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sv-sort-icon {
+    font-size: 13px;
+    vertical-align: middle;
+    color: var(--primary);
+}
+
+.sv-sort-hint {
+    font-size: 12px;
+    vertical-align: middle;
+    opacity: 0;
+    transition: opacity .15s;
+    color: var(--t-bbb);
+}
+
+.sv-th-sortable:hover .sv-sort-hint {
+    opacity: 0.5;
+}
+
+/* ── Column Resize Handle ───────────────────────────────── */
+.sv-th {
+    position: relative;
+}
+
+.sv-resize {
+    position: absolute;
+    right: -5px;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    cursor: col-resize;
+    z-index: 11;
+    user-select: none;
+    touch-action: none;
+}
+
+.sv-resize::after {
+    content: '';
+    position: absolute;
+    right: 5px;
+    top: 20%;
+    bottom: 20%;
+    width: 2px;
+    background: transparent;
+    border-radius: 1px;
+    transition: background .15s;
+}
+
+.sv-resize:hover::after,
+.sv-resize:active::after {
+    background: var(--primary);
+}
+
+/* ── Table Cells ────────────────────────────────────────── */
+.sv-td {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--t-eee);
+    border-bottom: 1px solid var(--g-04);
+    border-right: 1px solid var(--g-03);
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    overflow: hidden;
+    transition: background .1s;
+}
+
+.sv-td:last-child {
+    border-right: none;
+}
+
+/* Allow flex containers inside cells to shrink below content size */
+.sv-td > div,
+.sv-td > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sv-td-edit {
+    cursor: text;
+    position: relative;
+}
+
+.sv-td-edit:hover {
+    background: var(--g-03);
+}
+
+.sv-td-edit::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    background: var(--primary);
+    opacity: 0;
+    transition: opacity .15s;
+}
+
+.sv-td-edit:hover::after {
+    opacity: 0.15;
+}
+
+.sv-td-expand-click {
+    cursor: pointer;
+}
+
+.sv-td-expand-click:hover {
+    background: var(--g-04);
+}
+
+.sv-muted {
+    opacity: 0.15;
+}
+
+/* ── Table Rows ─────────────────────────────────────────── */
+.sv-row {
+    transition: background .1s;
+}
+
+.sv-row-click {
+    cursor: pointer;
+}
+
+.sv-row:hover {
+    background: var(--g-03);
+}
+
+/* Done row */
+.sv-row-done .sv-td {
+    opacity: 0.4;
+}
+
+.sv-row-done .sv-td.sv-td-name {
+    opacity: 1;
+    color: var(--t-888);
+    text-decoration: line-through;
+}
+
+.sv-row-done .sv-td.sv-cell-check {
+    opacity: 1;
+}
+
+/* ── Checkbox ───────────────────────────────────────────── */
+.sv-cell-check {
+    width: 40px;
+    max-width: 40px;
+    overflow: visible;
+    text-align: center;
+    cursor: pointer;
+    padding: 8px 6px;
+}
+
+.sv-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--g-08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s;
+    background: transparent;
+}
+
+.sv-check:hover {
+    border-color: var(--primary);
+}
+
+.sv-check.checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.sv-check .material-icons-round {
+    font-size: 12px;
+    color: #fff;
+}
+
+/* ── Expand Chevron ─────────────────────────────────────── */
+.sv-cell-expand {
+    width: 32px;
+    max-width: 32px;
+    overflow: visible;
+    text-align: center;
+    cursor: pointer;
+    padding: 8px 4px;
+}
+
+.sv-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    transition: transform .2s, background .15s;
+}
+
+.sv-chevron:hover {
+    background: var(--g-05);
+}
+
+.sv-chevron .material-icons-round {
+    font-size: 14px;
+    color: var(--t-888);
+    transition: transform .2s;
+}
+
+.sv-chevron.open .material-icons-round {
+    transform: rotate(90deg);
+}
+
+/* ── Child / Hierarchy Rows ─────────────────────────────── */
+
+/* Project-level (depth-0) parent row — add spacing above to visually separate projects */
+.sv-row-parent + .sv-row-parent {
+    border-top: none;
+}
+
+.sv-row-parent + .sv-row-parent > .sv-td:first-child {
+    border-top: 2px solid var(--g-08);
+}
+
+.sv-row-parent + .sv-row-parent > .sv-td {
+    border-top: 2px solid var(--g-06);
+}
+
+/* When a child row is followed by a new parent row — separate project groups */
+.sv-row-child + .sv-row-parent {
+    border-top: none;
+}
+
+.sv-row-child + .sv-row-parent > .sv-td:first-child {
+    border-top: 2px solid var(--g-08);
+}
+
+.sv-row-child + .sv-row-parent > .sv-td {
+    border-top: 2px solid var(--g-06);
+}
+
+.sv-row-child {
+    background: var(--g-02);
+}
+
+.sv-row-child:hover {
+    background: var(--g-04);
+}
+
+.sv-row-child .sv-td {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--t-bbb);
+    border-bottom-color: var(--g-03);
+}
+
+.sv-row-child .sv-td:first-child {
+    box-shadow: inset 3px 0 0 var(--g-06);
+}
+
+.sv-row-child.depth-2 {
+    background: var(--g-03);
+}
+
+.sv-row-child.depth-2 .sv-td {
+    font-size: 11px;
+    color: var(--t-888);
+}
+
+.sv-row-child.depth-2 .sv-td:first-child {
+    box-shadow: inset 3px 0 0 var(--g-08);
+}
+
+/* Subtask done */
+.sv-row-sub.sv-row-done .sv-td {
+    opacity: 0.3;
+}
+
+.sv-row-sub.sv-row-done .sv-td:first-child {
+    box-shadow: inset 3px 0 0 #4ade80;
+    opacity: 1;
+}
+
+.sv-row-done .sv-td:first-child {
+    box-shadow: inset 3px 0 0 #4ade80;
+    opacity: 1;
+}
+
+.sv-row-sub .sv-cell-check .sv-check {
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+}
+
+.sv-row-sub .sv-cell-check .sv-check .material-icons-round {
+    font-size: 10px;
+}
+
+/* ── Actions Column ─────────────────────────────────────── */
+.sv-cell-actions {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+    overflow: visible;
+    text-align: center;
+    padding: 4px 6px;
+    background: var(--g-01, #0a0a0a);
+    border-left: 1px solid var(--g-06);
+}
+
+.sv-row:hover .sv-cell-actions {
+    background: var(--g-04);
+}
+
+html.theme-eduplex .sv-th-actions {
+    background: #f0f2f5;
+}
+
+html.theme-eduplex .sv-cell-actions {
+    background: #fafbfc;
+}
+
+html.theme-eduplex .sv-row:hover .sv-cell-actions {
+    background: #f0f2f5;
+}
+
+.sv-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .15s;
+}
+
+.sv-row:hover .sv-actions {
+    opacity: 1;
+}
+
+.sv-icon-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid var(--g-06);
+    background: var(--g-03);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+}
+
+.sv-icon-btn .material-icons-round {
+    font-size: 13px;
+    color: var(--t-bbb);
+}
+
+.sv-icon-btn:hover {
+    background: var(--g-08);
+}
+
+.sv-icon-edit:hover .material-icons-round {
+    color: var(--primary);
+}
+
+.sv-icon-del {
+    border-color: rgba(244, 63, 94, 0.15);
+    background: rgba(244, 63, 94, 0.04);
+}
+
+.sv-icon-del:hover {
+    background: rgba(244, 63, 94, 0.12);
+}
+
+.sv-icon-del .material-icons-round {
+    color: #f43f5e;
+}
+
+.sv-icon-add {
+    border-color: rgba(74, 222, 128, 0.15);
+    background: rgba(74, 222, 128, 0.04);
+}
+
+.sv-icon-add:hover {
+    background: rgba(74, 222, 128, 0.12);
+}
+
+.sv-icon-add .material-icons-round {
+    color: #4ade80;
+}
+
+/* ── Edit Input ─────────────────────────────────────────── */
+.sv-edit-input {
+    width: 100%;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1.5px solid var(--primary);
+    background: var(--g-02);
+    color: var(--t-eee);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 255, 69, 0), 0.1);
+    transition: box-shadow .15s;
+}
+
+.sv-edit-input:focus {
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 255, 69, 0), 0.18);
+}
+
+/* ── Inline Add Row ─────────────────────────────────────── */
+.sv-add-row {
+    background: rgba(var(--primary-rgb, 255, 69, 0), 0.02);
+}
+
+.sv-add-row:hover {
+    background: rgba(var(--primary-rgb, 255, 69, 0), 0.04);
+}
+
+.sv-add-row .sv-td {
+    border-bottom-color: rgba(var(--primary-rgb, 255, 69, 0), 0.08);
+}
+
+.sv-add-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sv-add-input {
+    flex: 1;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1.5px dashed var(--g-08);
+    background: var(--g-02);
+    color: var(--t-eee);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+}
+
+.sv-add-input:focus {
+    border-color: var(--primary);
+    border-style: solid;
+    background: var(--g-03);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 255, 69, 0), 0.08);
+}
+
+.sv-add-input::placeholder {
+    color: var(--t-888);
+    font-weight: 400;
+}
+
+.sv-add-confirm {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity .15s;
+    flex-shrink: 0;
+}
+
+.sv-add-confirm:hover {
+    opacity: 0.85;
+}
+
+.sv-add-confirm .material-icons-round {
+    font-size: 14px;
+}
+
+/* ── Bottom Add Row (always visible) ───────────────────── */
+.sv-add-row-bottom {
+    background: transparent;
+    cursor: pointer;
+}
+
+.sv-add-row-bottom:hover {
+    background: rgba(var(--primary-rgb, 255, 69, 0), 0.04);
+}
+
+.sv-add-bottom-wrap {
+    min-height: 34px;
+}
+
+.sv-add-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--t-888);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 0;
+    transition: color .15s;
+    user-select: none;
+}
+
+.sv-add-placeholder .material-icons-round {
+    font-size: 16px;
+    color: var(--t-888);
+    transition: color .15s;
+}
+
+.sv-add-row-bottom:hover .sv-add-placeholder {
+    color: var(--primary);
+}
+
+.sv-add-row-bottom:hover .sv-add-placeholder .material-icons-round {
+    color: var(--primary);
+}
+
+.sv-add-bottom-icon {
+    font-size: 16px;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+/* ── Cell Select Dropdown ───────────────────────────────── */
+.sv-cell-select {
+    position: absolute;
+    top: calc(100% - 2px);
+    left: 0;
+    min-width: 150px;
+    max-height: 220px;
+    overflow-y: auto;
+    border-radius: 10px;
+    z-index: 100;
+    background: var(--surface);
+    border: 1px solid var(--g-08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    animation: svPop .15s ease;
+}
+
+.sv-cell-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--t-bbb);
+    cursor: pointer;
+    transition: background .1s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.sv-cell-opt:hover {
+    background: var(--g-05);
+    color: var(--t-fff);
+}
+
+.sv-cell-opt.active {
+    color: var(--primary);
+    background: var(--g-04);
+}
+
+.sv-cell-opt-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.sv-cell-opt-check {
+    font-size: 12px;
+    color: var(--primary);
+    margin-left: auto;
+}
+
+/* ── Group Header ───────────────────────────────────────── */
+.sv-group-row {}
+
+.sv-group-cell {
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: var(--g-03);
+    border-bottom: 1px solid var(--g-06);
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+.sv-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--g-06);
+    background: var(--g-02);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t-bbb);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+/* ── Empty State ────────────────────────────────────────── */
+.sv-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    gap: 12px;
+}
+
+.sv-empty .material-icons-round {
+    font-size: 40px;
+    color: var(--t-333);
+    opacity: 0.3;
+}
+
+.sv-empty p {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--t-888);
+    margin: 0;
+}
+
+/* ── Priority Badge ─────────────────────────────────────── */
+.sv-pri {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ── Status Pill ────────────────────────────────────────── */
+.sv-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.sv-status .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+}
+
+.sv-status.done { color: #4ade80; }
+.sv-status.done .dot { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.6); }
+.sv-status.todo { color: var(--t-bbb); }
+.sv-status.todo .dot { background: var(--t-888); }
+.sv-status.processing { color: #3b82f6; }
+.sv-status.processing .dot { background: #3b82f6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.5); }
+.sv-status.ignore { color: #6b7280; }
+.sv-status.ignore .dot { background: #6b7280; }
+.sv-status.default { color: var(--t-bbb); }
+.sv-status.default .dot { background: var(--t-888); }
+
+/* ── Compact Mode ───────────────────────────────────────── */
+.sv-compact .sv-th {
+    padding: 5px 8px;
+    font-size: 9px;
+}
+
+.sv-compact .sv-td {
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+.sv-compact .sv-cell-check {
+    padding: 5px 4px;
+}
+
+.sv-compact .sv-cell-expand {
+    padding: 5px 4px;
+}
+
+.sv-compact .sv-group-cell {
+    padding: 5px 16px;
+}
+
+/* ── Animation ──────────────────────────────────────────── */
+@keyframes svPop {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — Mobile
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+    .sv-root {
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        width: 100%;
+        overflow: hidden;
+        padding: 3px 17px 5px 15px;
+    }
+
+    .sv-table-wrap {
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--g-08) transparent;
+    }
+
+    .sv-table {
+        min-width: 500px;
+    }
+
+    .sv-th, .sv-td {
+        padding: 6px 8px;
+    }
+
+    .sv-toolbar {
+        padding: 8px 12px;
+    }
+
+    .sv-filters {
+        padding: 6px 12px;
+    }
+
+    /* On mobile, always show actions */
+    .sv-actions {
+        opacity: 1;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — Desktop with sidebar
+   On desktop, the sheet needs padding-left to not sit
+   underneath the sidebar. The sheet is INSIDE .app-content
+   which already has margin-left: 72px (768px+) and
+   margin-left: 220px (1024px+), so the sheet is already
+   pushed right. We just ensure it doesn't break out.
+   ═══════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+    .sv-root {
+        width: fit-content;
+        border-radius: 0;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THEME — Eduplex (light mode)
+   ═══════════════════════════════════════════════════════════ */
+html.theme-eduplex .sv-root {
+    background: #FFFFFF;
+    border-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-th {
+    background: #f9fafb;
+    color: #6b7280;
+    border-bottom-color: #e5e5e5;
+    border-right-color: #f3f4f6;
+}
+
+html.theme-eduplex .sv-th-sortable:hover {
+    background: #f3f4f6;
+}
+
+html.theme-eduplex .sv-th-sorted {
+    background: #f3f4f6;
+}
+
+html.theme-eduplex .sv-td {
+    color: #374151;
+    border-bottom-color: #f3f4f6;
+    border-right-color: #f9fafb;
+}
+
+html.theme-eduplex .sv-row:hover {
+    background: #f9fafb;
+}
+
+html.theme-eduplex .sv-row-child {
+    background: #fafafa;
+}
+
+html.theme-eduplex .sv-row-child .sv-td {
+    color: #6b7280;
+}
+
+html.theme-eduplex .sv-row-child:hover {
+    background: #f5f5f5;
+}
+
+html.theme-eduplex .sv-row-child + .sv-row-parent .sv-td,
+html.theme-eduplex .sv-row-parent + .sv-row-parent .sv-td {
+    border-top-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-group-cell {
+    background: #f3f4f6;
+    border-bottom-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-footer {
+    background: #f9fafb;
+    border-top-color: #e5e5e5;
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-edit-input {
+    background: #fff;
+    color: #374151;
+}
+
+html.theme-eduplex .sv-add-input {
+    background: #fff;
+    color: #374151;
+}
+
+html.theme-eduplex .sv-cell-select {
+    background: #fff;
+    border-color: #e5e5e5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+html.theme-eduplex .sv-cell-opt {
+    color: #6b7280;
+}
+
+html.theme-eduplex .sv-cell-opt:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+html.theme-eduplex .sv-td-edit:hover {
+    background: #f3f8fe;
+}
+
+html.theme-eduplex .sv-toolbar {
+    border-bottom-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-toolbar-title {
+    color: #111827;
+}
+
+html.theme-eduplex .sv-filter-menu {
+    background: #fff;
+    border-color: #e5e5e5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+html.theme-eduplex .sv-filter-opt {
+    color: #6b7280;
+}
+
+html.theme-eduplex .sv-filter-opt:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+html.theme-eduplex .sv-check {
+    border-color: #d1d5db;
+}
+
+html.theme-eduplex .sv-chevron .material-icons-round {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-add-confirm {
+    color: #1A1B27;
+}
+
+/* Additional eduplex overrides for full text visibility */
+html.theme-eduplex .sv-toolbar-badge {
+    color: #6b7280;
+    background: #f3f4f6;
+    border-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-btn-add {
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+html.theme-eduplex .sv-btn-add:hover {
+    color: var(--primary);
+}
+
+html.theme-eduplex .sv-chip {
+    color: #6b7280;
+    background: #f3f4f6;
+    border-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-chip:hover {
+    color: #111827;
+    background: #e5e7eb;
+}
+
+html.theme-eduplex .sv-filter-btn {
+    color: #6b7280;
+    background: #f3f4f6;
+    border-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-filter-btn:hover {
+    color: #111827;
+    background: #e5e7eb;
+}
+
+html.theme-eduplex .sv-filters-icon {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-th-sortable:hover {
+    color: #374151;
+}
+
+html.theme-eduplex .sv-sort-hint {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-icon-btn {
+    background: #f3f4f6;
+    border-color: #e5e5e5;
+}
+
+html.theme-eduplex .sv-icon-btn .material-icons-round {
+    color: #6b7280;
+}
+
+html.theme-eduplex .sv-icon-btn:hover {
+    background: #e5e7eb;
+}
+
+html.theme-eduplex .sv-add-input {
+    border-color: #d1d5db;
+    background: #fff;
+    color: #374151;
+}
+
+html.theme-eduplex .sv-add-input::placeholder {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-add-input:focus {
+    background: #fff;
+}
+
+html.theme-eduplex .sv-add-placeholder {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-add-placeholder .material-icons-round {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-add-row-bottom:hover .sv-add-placeholder,
+html.theme-eduplex .sv-add-row-bottom:hover .sv-add-placeholder .material-icons-round {
+    color: var(--primary);
+}
+
+html.theme-eduplex .sv-muted {
+    opacity: 0.25;
+}
+
+html.theme-eduplex .sv-row-done .sv-td.sv-td-name {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-empty .material-icons-round {
+    color: #d1d5db;
+}
+
+html.theme-eduplex .sv-empty p {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-status.todo {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-status.todo .dot {
+    background: #9ca3af;
+}
+
+html.theme-eduplex .sv-status.processing {
+    color: #2563eb;
+}
+
+html.theme-eduplex .sv-status.processing .dot {
+    background: #2563eb;
+}
+
+html.theme-eduplex .sv-status.ignore {
+    color: #9ca3af;
+}
+
+html.theme-eduplex .sv-status.ignore .dot {
+    background: #d1d5db;
+}
+
+html.theme-eduplex .sv-status.default {
+    color: #6b7280;
+}
+
+html.theme-eduplex .sv-status.default .dot {
+    background: #9ca3af;
+}
+
+html.theme-eduplex .sv-status.done {
+    color: #16a34a;
+}
+
+html.theme-eduplex .sv-status.done .dot {
+    background: #16a34a;
+    box-shadow: 0 0 6px rgba(22, 163, 106, 0.4);
+}
+
+html.theme-eduplex .sv-row-child .sv-td:first-child {
+    box-shadow: inset 3px 0 0 #e5e7eb;
+}
+
+html.theme-eduplex .sv-row-child.depth-2 .sv-td:first-child {
+    box-shadow: inset 3px 0 0 #d1d5db;
+}
+
+html.theme-eduplex .sv-edit-input:focus {
+    box-shadow: 0 0 0 3px rgba(200, 249, 2, 0.15);
+}
+
+html.theme-eduplex .sv-add-input:focus {
+    box-shadow: 0 0 0 3px rgba(200, 249, 2, 0.15);
+}

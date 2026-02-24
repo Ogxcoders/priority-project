@@ -43,3 +43,18 @@ export const TABS = [
 /* ===== Task Icons & Colors for Calendar ===== */
 export const TASK_ICONS = ['emoji_events', 'verified', 'rocket_launch', 'star', 'bolt', 'diamond', 'military_tech', 'workspace_premium'];
 export const TASK_COLORS = ['#fbbf24', '#3b82f6', '#FF4500', '#a78bfa', '#22c55e', '#06b6d4', '#f43f5e', '#10b981'];
+
+/* ===== Status Options & Labels ===== */
+export const STATUS_OPTS = [
+    { value: 'default', label: 'Default', color: '#6b7280' },
+    { value: 'processing', label: 'Processing', color: '#3b82f6' },
+    { value: 'done', label: 'Done', color: '#4ade80' },
+    { value: 'ignore', label: 'Ignore', color: '#6b7280' },
+];
+
+export const STATUS_LABELS: Record<string, string> = {
+    done: 'Done',
+    processing: 'Processing',
+    ignore: 'Ignore',
+    default: 'Default',
+};

@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   cacheHandler: process.env.NODE_ENV === 'production' ? require.resolve('./cache-handler.js') : undefined,
   cacheMaxMemorySize: 0,
 
-  // ── Security Headers ──
+  // ── Security + Performance Headers ──
   headers: async () => [
     {
       source: '/(.*)',
@@ -20,6 +20,29 @@ const nextConfig: NextConfig = {
         { key: 'X-XSS-Protection', value: '1; mode=block' },
         { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+      ],
+    },
+    // Service Worker — must not be cached by CDN
+    {
+      source: '/sw.js',
+      headers: [
+        { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        { key: 'Service-Worker-Allowed', value: '/' },
+      ],
+    },
+    // PWA Manifest
+    {
+      source: '/manifest.json',
+      headers: [
+        { key: 'Cache-Control', value: 'public, max-age=86400' },
+        { key: 'Content-Type', value: 'application/manifest+json' },
+      ],
+    },
+    // Static assets — long cache
+    {
+      source: '/icons/:path*',
+      headers: [
+        { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
       ],
     },
   ],
@@ -37,6 +60,11 @@ const nextConfig: NextConfig = {
 
   // ── Strict mode for better error catching ──
   reactStrictMode: true,
+
+  // ── Experimental: optimize package imports ──
+  experimental: {
+    optimizePackageImports: ['appwrite', 'chart.js'],
+  },
 };
 
 export default nextConfig;
